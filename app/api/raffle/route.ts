@@ -50,11 +50,17 @@ export async function POST() {
 export async function GET() {
   const { data: session } = await supabaseAdmin
     .from('sessions')
-    .select('id, name, winner_id, participants!sessions_winner_id_fkey(*)')
+    .select('id, winner_id')
     .eq('status', 'active')
     .single()
 
-  if (!session) return Response.json({ winner: null })
+  if (!session?.winner_id) return Response.json({ winner: null })
 
-  return Response.json({ winner: session.winner_id ? (session as any).participants : null })
+  const { data: winner } = await supabaseAdmin
+    .from('participants')
+    .select('name, phone')
+    .eq('id', session.winner_id)
+    .single()
+
+  return Response.json({ winner: winner ?? null })
 }
