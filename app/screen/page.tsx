@@ -124,7 +124,7 @@ export default function ScreenPage() {
         </header>
         <main className="flex-1 flex flex-col items-center justify-center px-8 text-center text-white animate-fade-in-up">
           <p className="text-sm font-medium tracking-[0.3em] uppercase opacity-80 mb-6">
-            {latestDraw.label}
+            {cleanLabel(latestDraw.label)}
           </p>
           <h1 className="text-7xl sm:text-8xl font-semibold tracking-tight mb-4">
             {latestDraw.winner.name}
@@ -195,6 +195,10 @@ export default function ScreenPage() {
       <ScreenFooter />
     </div>
   )
+}
+
+function cleanLabel(label: string): string {
+  return label.replace(/^[\p{Extended_Pictographic}\s]+/u, '').trim()
 }
 
 function Stat({ label, value }: { label: string; value: string }) {

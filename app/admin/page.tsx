@@ -238,7 +238,7 @@ function Dashboard() {
         </header>
         <main className="flex-1 flex flex-col items-center justify-center text-center px-8 animate-fade-in-up">
           <p className="text-sm font-medium tracking-[0.3em] uppercase opacity-80 mb-6">
-            {drawWinner.label}
+            {cleanLabel(drawWinner.label)}
           </p>
           <h1 className="text-6xl font-semibold tracking-tight mb-3">{drawWinner.name}</h1>
           <p className="text-xl opacity-80 tabular-nums mb-12">{drawWinner.phone}</p>
@@ -440,7 +440,7 @@ function Dashboard() {
             <div className="divide-y divide-[#E5E7EB]">
               {draws.map(d => (
                 <div key={d.id} className="grid grid-cols-3 items-center py-2.5 text-sm">
-                  <span className="font-medium text-[#0A0A0A]">{d.label}</span>
+                  <span className="font-medium text-[#0A0A0A]">{cleanLabel(d.label)}</span>
                   <span className="font-medium text-[#0096DC] text-center">
                     {d.participants?.name ?? '—'}
                   </span>
@@ -514,6 +514,10 @@ export default function AdminPage() {
   return state === 'pin'
     ? <PinGate onUnlock={() => setState('dashboard')} />
     : <Dashboard />
+}
+
+function cleanLabel(label: string): string {
+  return label.replace(/^[\p{Extended_Pictographic}\s]+/u, '').trim()
 }
 
 function ActiveBankLogo({ invert = false }: { invert?: boolean }) {
