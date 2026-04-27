@@ -28,3 +28,15 @@ export type Participant = {
   phone: string
   registered_at: string
 }
+
+export type Draw = {
+  id: string
+  session_id: string
+  label: string
+  winner_id: string
+  drawn_at: string
+  participants?: {
+    name: string
+    phone: string
+  }
+}
