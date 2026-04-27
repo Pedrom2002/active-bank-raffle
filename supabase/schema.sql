@@ -55,7 +55,7 @@ create table draws (
   id          uuid primary key default gen_random_uuid(),
   session_id  uuid not null references sessions(id) on delete cascade,
   label       text not null,
-  winner_id   uuid not null references participants(id),
+  winner_id   uuid not null references participants(id) on delete cascade,
   drawn_at    timestamptz not null default now()
 );
 
