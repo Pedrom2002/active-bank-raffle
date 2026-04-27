@@ -49,3 +49,17 @@ alter table qr_tokens    enable row level security;
 create policy "service_role_all_sessions"     on sessions     for all using (true);
 create policy "service_role_all_participants" on participants  for all using (true);
 create policy "service_role_all_qr_tokens"   on qr_tokens    for all using (true);
+
+-- Draws - multiple draws per session
+create table draws (
+  id          uuid primary key default gen_random_uuid(),
+  session_id  uuid not null references sessions(id) on delete cascade,
+  label       text not null,
+  winner_id   uuid not null references participants(id),
+  drawn_at    timestamptz not null default now()
+);
+
+create index idx_draws_session on draws(session_id);
+
+alter table draws enable row level security;
+create policy "service_role_all_draws" on draws for all using (true);
