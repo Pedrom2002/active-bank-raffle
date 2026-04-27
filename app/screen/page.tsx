@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 
 type QRData = {
   session_id: string
@@ -20,6 +20,9 @@ export default function ScreenPage() {
   const [count, setCount] = useState(0)
   const [winner, setWinner] = useState<Winner | null>(null)
   const [noSession, setNoSession] = useState(false)
+  const [latestDraw, setLatestDraw] = useState<{ label: string; winner: { name: string; phone: string } } | null>(null)
+  const [drawVisible, setDrawVisible] = useState(false)
+  const lastDrawId = useRef<string | null>(null)
 
   const fetchQR = useCallback(async () => {
     const res = await fetch('/api/qr')
@@ -44,6 +47,22 @@ export default function ScreenPage() {
       if (data.winner) setWinner(data.winner)
     }
   }, [])
+
+  const fetchLatestDraw = useCallback(async () => {
+    if (!qr?.session_id) return
+    const res = await fetch(`/api/draws?session_id=${qr.session_id}&latest=1`)
+    if (!res.ok) return
+    const data = await res.json()
+    if (!data.draw) return
+    if (data.draw.id === lastDrawId.current) return
+    lastDrawId.current = data.draw.id
+    setLatestDraw({
+      label: data.draw.label,
+      winner: data.draw.participants,
+    })
+    setDrawVisible(true)
+    setTimeout(() => setDrawVisible(false), 10_000)
+  }, [qr?.session_id])
 
   // Initial fetch
   useEffect(() => { fetchQR() }, [fetchQR])
@@ -73,6 +92,14 @@ export default function ScreenPage() {
     return () => clearInterval(interval)
   }, [fetchWinner])
 
+  // Poll for latest draw every 3s
+  useEffect(() => {
+    if (!qr?.session_id) return
+    fetchLatestDraw()
+    const interval = setInterval(fetchLatestDraw, 3000)
+    return () => clearInterval(interval)
+  }, [qr?.session_id, fetchLatestDraw])
+
   // Winner screen
   if (winner) {
     return (
@@ -86,6 +113,18 @@ export default function ScreenPage() {
         <div className="absolute bottom-8 opacity-40">
           <ActiveBankLogo />
         </div>
+      </div>
+    )
+  }
+
+  // Draw overlay (mini-sorteio)
+  if (drawVisible && latestDraw) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-[#1a6b1a] to-[#004AAD] flex flex-col items-center justify-center text-white text-center p-8">
+        <div className="text-6xl mb-2">🎉</div>
+        <p className="text-xl opacity-70 mb-1 uppercase tracking-widest">{latestDraw.label}</p>
+        <p className="text-5xl font-black mb-2">{latestDraw.winner.name}</p>
+        <p className="text-2xl opacity-70">{latestDraw.winner.phone}</p>
       </div>
     )
   }
