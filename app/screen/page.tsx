@@ -64,10 +64,8 @@ export default function ScreenPage() {
     setTimeout(() => setDrawVisible(false), 10_000)
   }, [qr?.session_id])
 
-  // Initial fetch
   useEffect(() => { fetchQR() }, [fetchQR])
 
-  // Refresh QR when token is about to expire
   useEffect(() => {
     if (!qr) return
     const interval = setInterval(() => {
@@ -78,7 +76,6 @@ export default function ScreenPage() {
     return () => clearInterval(interval)
   }, [qr, fetchQR])
 
-  // Poll participant count every 5s
   useEffect(() => {
     if (!qr?.session_id) return
     fetchCount(qr.session_id)
@@ -86,13 +83,11 @@ export default function ScreenPage() {
     return () => clearInterval(interval)
   }, [qr?.session_id, fetchCount])
 
-  // Poll for winner every 3s
   useEffect(() => {
     const interval = setInterval(fetchWinner, 3000)
     return () => clearInterval(interval)
   }, [fetchWinner])
 
-  // Poll for latest draw every 3s
   useEffect(() => {
     if (!qr?.session_id) return
     fetchLatestDraw()
@@ -100,92 +95,154 @@ export default function ScreenPage() {
     return () => clearInterval(interval)
   }, [qr?.session_id, fetchLatestDraw])
 
-  // Winner screen
+  // ── Final winner ──
   if (winner) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#00205B] to-[#004AAD] flex flex-col items-center justify-center text-white">
-        <div className="text-center animate-bounce-in">
-          <div className="text-8xl mb-6">🏆</div>
-          <div className="text-3xl font-light mb-2 tracking-widest uppercase opacity-80">Vencedor</div>
-          <div className="text-7xl font-black mb-4 tracking-tight">{winner.name}</div>
-          <div className="text-2xl opacity-60">{winner.phone}</div>
-        </div>
-        <div className="absolute bottom-8 opacity-40">
-          <ActiveBankLogo />
-        </div>
+      <div className="min-h-screen bg-white flex flex-col">
+        <ScreenHeader />
+        <main className="flex-1 flex flex-col items-center justify-center px-8 text-center animate-fade-in-up">
+          <p className="text-sm font-medium tracking-[0.3em] uppercase text-[#0096DC] mb-6">
+            Vencedor do sorteio
+          </p>
+          <h1 className="text-7xl sm:text-8xl font-semibold tracking-tight text-[#0A0A0A] mb-4">
+            {winner.name}
+          </h1>
+          <p className="text-2xl text-[#6B7280] tabular-nums">{winner.phone}</p>
+          <div className="mt-12 h-1 w-24 bg-[#0096DC] rounded-full" />
+        </main>
+        <ScreenFooter />
       </div>
     )
   }
 
-  // Draw overlay (mini-sorteio)
+  // ── Per-draw overlay ──
   if (drawVisible && latestDraw) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#1a6b1a] to-[#004AAD] flex flex-col items-center justify-center text-white text-center p-8">
-        <div className="text-6xl mb-2">🎉</div>
-        <p className="text-xl opacity-70 mb-1 uppercase tracking-widest">{latestDraw.label}</p>
-        <p className="text-5xl font-black mb-2">{latestDraw.winner.name}</p>
-        <p className="text-2xl opacity-70">{latestDraw.winner.phone}</p>
+      <div className="min-h-screen bg-[#0096DC] flex flex-col">
+        <header className="px-8 py-6">
+          <ActiveBankLogo invert />
+        </header>
+        <main className="flex-1 flex flex-col items-center justify-center px-8 text-center text-white animate-fade-in-up">
+          <p className="text-sm font-medium tracking-[0.3em] uppercase opacity-80 mb-6">
+            {latestDraw.label}
+          </p>
+          <h1 className="text-7xl sm:text-8xl font-semibold tracking-tight mb-4">
+            {latestDraw.winner.name}
+          </h1>
+          <p className="text-2xl opacity-80 tabular-nums">{latestDraw.winner.phone}</p>
+        </main>
+        <footer className="px-8 py-4 text-center text-white/60 text-xs">
+          Fan Zone · Mundial 2026
+        </footer>
       </div>
     )
   }
 
-  // No active session
+  // ── No active session ──
   if (noSession) {
     return (
-      <div className="min-h-screen bg-[#00205B] flex flex-col items-center justify-center text-white gap-6">
-        <ActiveBankLogo />
-        <p className="text-2xl opacity-60">Aguarda o início do próximo jogo…</p>
+      <div className="min-h-screen bg-white flex flex-col">
+        <ScreenHeader />
+        <main className="flex-1 flex flex-col items-center justify-center px-8 text-center">
+          <div className="w-2 h-2 rounded-full bg-[#0096DC] mb-6 animate-pulse-dot" />
+          <h1 className="text-3xl font-semibold tracking-tight text-[#0A0A0A] mb-2">
+            Aguardar próximo jogo
+          </h1>
+          <p className="text-[#6B7280]">A equipa ActivoBank irá iniciar a sessão em breve.</p>
+        </main>
+        <ScreenFooter />
       </div>
     )
   }
 
-  // QR screen
+  // ── QR / participation screen ──
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#00205B] to-[#004AAD] flex flex-col items-center justify-center text-white p-8">
-      {/* Header */}
-      <div className="mb-6 text-center">
-        <ActiveBankLogo />
-        <h1 className="text-2xl font-bold mt-3 tracking-widest uppercase opacity-80">
-          {qr?.session_name ?? 'A carregar…'}
-        </h1>
-      </div>
+    <div className="min-h-screen bg-white flex flex-col">
+      <ScreenHeader />
 
-      {/* QR Code */}
-      <div className="bg-white rounded-3xl p-4 shadow-2xl mb-6">
-        {qr?.qr_data_url ? (
-          <img src={qr.qr_data_url} alt="QR Code" className="w-72 h-72 sm:w-96 sm:h-96" />
-        ) : (
-          <div className="w-72 h-72 sm:w-96 sm:h-96 animate-pulse bg-gray-100 rounded-2xl" />
-        )}
-      </div>
+      <main className="flex-1 flex flex-col lg:flex-row items-center justify-center gap-12 px-8 py-10 max-w-7xl mx-auto w-full">
+        {/* Left: Title + CTA */}
+        <div className="flex-1 text-center lg:text-left max-w-xl">
+          <p className="text-sm font-medium tracking-[0.3em] uppercase text-[#0096DC] mb-4">
+            Sorteio Fan Zone
+          </p>
+          <h1 className="text-5xl sm:text-6xl font-semibold tracking-tight text-[#0A0A0A] leading-[1.05] mb-4">
+            {qr?.session_name ?? 'A carregar…'}
+          </h1>
+          <p className="text-xl text-[#6B7280] mb-10 leading-relaxed">
+            Aponta a câmara do telemóvel para o código QR e participa no sorteio.
+          </p>
 
-      {/* CTA */}
-      <p className="text-xl font-semibold mb-1">Escaneia para participar no sorteio!</p>
-      <p className="text-sm opacity-60 mb-4">Aponta a câmara do telemóvel para o código QR</p>
-
-      {/* Stats row */}
-      <div className="flex gap-8 text-center">
-        <div>
-          <div className="text-4xl font-black">{count}</div>
-          <div className="text-xs opacity-60 uppercase tracking-wider">Participantes</div>
+          <div className="grid grid-cols-2 gap-6 max-w-sm mx-auto lg:mx-0">
+            <Stat label="Participantes" value={count.toString()} />
+            <Stat label="Expira em" value={`${countdown}s`} />
+          </div>
         </div>
-        <div className="w-px bg-white opacity-20" />
-        <div>
-          <div className="text-4xl font-black">{countdown}s</div>
-          <div className="text-xs opacity-60 uppercase tracking-wider">Expira em</div>
+
+        {/* Right: QR */}
+        <div className="flex-shrink-0">
+          <div className="bg-white border border-[#E5E7EB] rounded-2xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.06)]">
+            {qr?.qr_data_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={qr.qr_data_url} alt="QR Code" className="w-80 h-80 sm:w-[420px] sm:h-[420px]" />
+            ) : (
+              <div className="w-80 h-80 sm:w-[420px] sm:h-[420px] animate-pulse bg-gray-100 rounded-xl" />
+            )}
+          </div>
         </div>
+      </main>
+
+      <ScreenFooter />
+    </div>
+  )
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div className="text-5xl font-semibold tracking-tight text-[#0A0A0A] tabular-nums">
+        {value}
+      </div>
+      <div className="text-xs text-[#6B7280] uppercase tracking-wider mt-1">
+        {label}
       </div>
     </div>
   )
 }
 
-function ActiveBankLogo() {
+function ScreenHeader() {
   return (
-    <div className="flex items-center gap-2">
-      <div className="w-10 h-10 rounded-full bg-[#E8B400] flex items-center justify-center font-black text-[#00205B] text-lg">
-        AB
+    <header className="border-b border-[#E5E7EB] px-8 py-5 flex items-center justify-between">
+      <ActiveBankLogo />
+      <span className="text-xs text-[#6B7280] uppercase tracking-[0.2em]">
+        Fan Zone · Mundial 2026
+      </span>
+    </header>
+  )
+}
+
+function ScreenFooter() {
+  return (
+    <footer className="border-t border-[#E5E7EB] px-8 py-4 text-center">
+      <p className="text-xs text-[#6B7280]">
+        Sorteio promovido pelo ActivoBank · Participação gratuita
+      </p>
+    </footer>
+  )
+}
+
+function ActiveBankLogo({ invert = false }: { invert?: boolean }) {
+  const text = invert ? 'text-white' : 'text-[#0A0A0A]'
+  const dot = invert ? 'bg-white' : 'bg-[#0096DC]'
+  const dotText = invert ? 'text-[#0096DC]' : 'text-white'
+  return (
+    <div className="flex items-center gap-2.5">
+      <div className={`w-8 h-8 rounded-full ${dot} flex items-center justify-center`}>
+        <span className={`${dotText} font-bold text-sm`}>A</span>
       </div>
-      <span className="text-xl font-bold tracking-tight">Active Bank</span>
+      <span className={`text-lg font-semibold tracking-tight ${text}`}>
+        ActivoBank
+      </span>
     </div>
   )
 }

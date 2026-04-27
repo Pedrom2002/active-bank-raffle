@@ -1,5 +1,30 @@
 @import "tailwindcss";
 
-body {
-  font-family: Arial, Helvetica, sans-serif;
+@theme {
+  --color-ab-blue: #0096DC;
+  --color-ab-blue-dark: #0064B4;
+  --color-ab-ink: #0A0A0A;
+  --color-ab-muted: #6B7280;
+  --color-ab-border: #E5E7EB;
+  --color-ab-bg: #F7F8FA;
+  --font-sans: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
+
+html, body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  letter-spacing: -0.01em;
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in-up { animation: fadeInUp .5s ease-out both; }
+
+@keyframes pulseDot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .35; }
+}
+.animate-pulse-dot { animation: pulseDot 1.4s ease-in-out infinite; }

@@ -1,9 +1,16 @@
 import type { Metadata } from "next";
+import { Inter } from "next/font/google";
 import "./globals.css";
 
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap",
+});
+
 export const metadata: Metadata = {
-  title: "Active Bank — Sorteio Fan Zone",
-  description: "Sistema de sorteio para o stand Active Bank no Mundial 2026",
+  title: "ActivoBank — Sorteio Fan Zone",
+  description: "Sistema de sorteio para o stand ActivoBank no Mundial 2026",
 };
 
 export default function RootLayout({
@@ -12,8 +19,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt" className="h-full">
-      <body className="min-h-full">{children}</body>
+    <html lang="pt" className={`h-full ${inter.variable}`}>
+      <body className="min-h-full bg-white text-[#0A0A0A]">{children}</body>
     </html>
   );
 }

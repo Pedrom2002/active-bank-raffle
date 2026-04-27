@@ -65,32 +65,45 @@ function PinGate({ onUnlock }: { onUnlock: () => void }) {
   }
 
   return (
-    <div className="min-h-screen bg-[#00205B] flex flex-col items-center justify-center p-6">
-      <ActiveBankLogo />
-      <div className="mt-8 bg-white rounded-2xl p-8 w-full max-w-xs shadow-2xl text-center">
-        <h2 className="text-lg font-bold text-[#00205B] mb-6">Acesso Admin</h2>
-        <div className="flex justify-center gap-3 mb-6">
-          {[0, 1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className={`w-5 h-5 rounded-full border-2 ${pin.length > i ? 'bg-[#004AAD] border-[#004AAD]' : 'border-gray-300'}`}
-            />
-          ))}
+    <div className="min-h-screen bg-white flex flex-col">
+      <header className="border-b border-[#E5E7EB] px-6 py-4">
+        <ActiveBankLogo />
+      </header>
+
+      <main className="flex-1 flex flex-col items-center justify-center p-6">
+        <div className="w-full max-w-xs">
+          <div className="text-center mb-8">
+            <h1 className="text-2xl font-semibold tracking-tight text-[#0A0A0A]">Acesso Admin</h1>
+            <p className="text-sm text-[#6B7280] mt-1">Introduz o PIN de 4 dígitos</p>
+          </div>
+
+          <div className="flex justify-center gap-3 mb-6">
+            {[0, 1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className={`w-3.5 h-3.5 rounded-full transition-colors ${pin.length > i ? 'bg-[#0096DC]' : 'bg-[#E5E7EB]'}`}
+              />
+            ))}
+          </div>
+
+          {error && (
+            <p className="text-red-600 text-sm mb-4 text-center">{error}</p>
+          )}
+
+          <div className="grid grid-cols-3 gap-2.5">
+            {['1','2','3','4','5','6','7','8','9','','0','⌫'].map((d, i) => (
+              <button
+                key={i}
+                onClick={() => d === '⌫' ? setPin(p => p.slice(0,-1)) : d && handleDigit(d)}
+                disabled={locked || d === ''}
+                className="h-14 rounded-lg bg-[#F7F8FA] hover:bg-[#EDEFF2] active:bg-[#E5E7EB] text-xl font-medium text-[#0A0A0A] disabled:opacity-0 transition-colors"
+              >
+                {d}
+              </button>
+            ))}
+          </div>
         </div>
-        {error && <p className="text-red-600 text-sm mb-4">{error}</p>}
-        <div className="grid grid-cols-3 gap-3">
-          {['1','2','3','4','5','6','7','8','9','','0','⌫'].map((d, i) => (
-            <button
-              key={i}
-              onClick={() => d === '⌫' ? setPin(p => p.slice(0,-1)) : d && handleDigit(d)}
-              disabled={locked || d === ''}
-              className="h-14 rounded-xl bg-gray-100 hover:bg-gray-200 text-xl font-bold text-gray-800 disabled:opacity-0 transition-colors"
-            >
-              {d}
-            </button>
-          ))}
-        </div>
-      </div>
+      </main>
     </div>
   )
 }
@@ -188,7 +201,6 @@ function Dashboard() {
     if (raffleState !== 'idle') return
     setRaffleState('drawing')
 
-    // Animate for 3s then call API
     setTimeout(async () => {
       const res = await fetch('/api/raffle', { method: 'POST' })
       const data = await res.json()
@@ -217,20 +229,26 @@ function Dashboard() {
     a.click()
   }
 
-  // ── Draw winner overlay ──
+  // ── Per-draw winner overlay ──
   if (drawWinner) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#00205B] to-[#004AAD] flex flex-col items-center justify-center text-white text-center p-8">
-        <div className="text-6xl mb-2">{drawWinner.label.startsWith('🥅') ? '🥅' : drawWinner.label.startsWith('🏆') ? '🏆' : '🎉'}</div>
-        <p className="text-xl opacity-70 mb-1 uppercase tracking-widest">{drawWinner.label}</p>
-        <p className="text-5xl font-black mb-2">{drawWinner.name}</p>
-        <p className="text-2xl opacity-70 mb-8">{drawWinner.phone}</p>
-        <button
-          onClick={() => setDrawWinner(null)}
-          className="bg-white text-[#00205B] font-black px-8 py-3 rounded-xl text-lg hover:bg-gray-100 transition-colors"
-        >
-          Continuar Jogo
-        </button>
+      <div className="min-h-screen bg-[#0096DC] flex flex-col text-white">
+        <header className="px-6 py-4">
+          <ActiveBankLogo invert />
+        </header>
+        <main className="flex-1 flex flex-col items-center justify-center text-center px-8 animate-fade-in-up">
+          <p className="text-sm font-medium tracking-[0.3em] uppercase opacity-80 mb-6">
+            {drawWinner.label}
+          </p>
+          <h1 className="text-6xl font-semibold tracking-tight mb-3">{drawWinner.name}</h1>
+          <p className="text-xl opacity-80 tabular-nums mb-12">{drawWinner.phone}</p>
+          <button
+            onClick={() => setDrawWinner(null)}
+            className="bg-white text-[#0096DC] font-semibold px-8 py-3 rounded-lg hover:bg-gray-100 transition-colors"
+          >
+            Continuar jogo
+          </button>
+        </main>
       </div>
     )
   }
@@ -240,96 +258,109 @@ function Dashboard() {
     return <DrawingAnimation names={participants.map(p => p.name)} />
   }
 
-  // ── Winner ──
+  // ── Final winner ──
   if (raffleState === 'done' && winner) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#00205B] to-[#004AAD] flex flex-col items-center justify-center text-white text-center p-8">
-        <div className="text-8xl mb-4">🏆</div>
-        <p className="text-xl opacity-70 mb-1 uppercase tracking-widest">Vencedor</p>
-        <p className="text-5xl font-black mb-2">{winner.name}</p>
-        <p className="text-2xl opacity-70 mb-8">{winner.phone}</p>
-        <button
-          onClick={() => { setShowNewGame(true); setWinner(null); setRaffleState('idle') }}
-          className="bg-[#E8B400] text-[#00205B] font-black px-8 py-3 rounded-xl text-lg hover:bg-[#f5c800] transition-colors"
-        >
-          Iniciar Novo Jogo
-        </button>
+      <div className="min-h-screen bg-white flex flex-col">
+        <header className="border-b border-[#E5E7EB] px-6 py-4">
+          <ActiveBankLogo />
+        </header>
+        <main className="flex-1 flex flex-col items-center justify-center text-center px-8 animate-fade-in-up">
+          <p className="text-sm font-medium tracking-[0.3em] uppercase text-[#0096DC] mb-6">
+            Vencedor do sorteio
+          </p>
+          <h1 className="text-6xl font-semibold tracking-tight text-[#0A0A0A] mb-3">{winner.name}</h1>
+          <p className="text-xl text-[#6B7280] tabular-nums mb-12">{winner.phone}</p>
+          <button
+            onClick={() => { setShowNewGame(true); setWinner(null); setRaffleState('idle') }}
+            className="bg-[#0096DC] hover:bg-[#0064B4] text-white font-semibold px-8 py-3 rounded-lg transition-colors"
+          >
+            Iniciar novo jogo
+          </button>
+        </main>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-[#00205B] text-white px-6 py-4 flex items-center justify-between">
+    <div className="min-h-screen bg-[#F7F8FA]">
+      <header className="bg-white border-b border-[#E5E7EB] px-6 py-4 flex items-center justify-between">
         <ActiveBankLogo />
-        <span className="text-sm opacity-60">Painel Admin</span>
+        <span className="text-xs text-[#6B7280] uppercase tracking-[0.2em]">Painel Admin</span>
       </header>
 
-      <div className="max-w-2xl mx-auto p-6 space-y-4">
+      <div className="max-w-3xl mx-auto p-6 space-y-4">
 
         {/* Active session card */}
         {activeSession ? (
-          <div className="bg-white rounded-2xl shadow p-5">
-            <div className="flex items-start justify-between mb-3">
+          <section className="bg-white border border-[#E5E7EB] rounded-xl p-6">
+            <div className="flex items-start justify-between mb-5">
               <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                  <span className="text-xs font-semibold text-green-600 uppercase tracking-wider">Jogo Activo</span>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#0096DC] animate-pulse-dot" />
+                  <span className="text-[10px] font-semibold text-[#0096DC] uppercase tracking-[0.2em]">
+                    Jogo activo
+                  </span>
                 </div>
-                <h2 className="text-2xl font-black text-[#00205B]">{activeSession.name}</h2>
+                <h2 className="text-2xl font-semibold tracking-tight text-[#0A0A0A]">
+                  {activeSession.name}
+                </h2>
               </div>
               <div className="text-right">
-                <div className="text-4xl font-black text-[#004AAD]">{participants.length}</div>
-                <div className="text-xs text-gray-500">participantes</div>
+                <div className="text-4xl font-semibold tracking-tight text-[#0A0A0A] tabular-nums">
+                  {participants.length}
+                </div>
+                <div className="text-[10px] text-[#6B7280] uppercase tracking-wider mt-0.5">
+                  participantes
+                </div>
               </div>
             </div>
 
-            {/* Participants list */}
             {participants.length > 0 && (
-              <div className="border rounded-xl overflow-hidden mb-4">
-                <div className="max-h-48 overflow-y-auto divide-y">
+              <div className="border border-[#E5E7EB] rounded-lg overflow-hidden mb-5">
+                <div className="max-h-48 overflow-y-auto divide-y divide-[#E5E7EB]">
                   {participants.map(p => (
-                    <div key={p.id} className="flex justify-between px-4 py-2 text-sm">
-                      <span className="font-medium">{p.name}</span>
-                      <span className="text-gray-500">{p.phone}</span>
+                    <div key={p.id} className="flex justify-between px-4 py-2.5 text-sm">
+                      <span className="font-medium text-[#0A0A0A]">{p.name}</span>
+                      <span className="text-[#6B7280] tabular-nums">{p.phone}</span>
                     </div>
                   ))}
                 </div>
               </div>
             )}
 
-            <div className="flex flex-col gap-2">
-              <div className="flex gap-2 flex-wrap">
+            <div className="flex flex-col gap-2.5">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 <button
-                  onClick={() => runDraw('🥅 Golo')}
+                  onClick={() => runDraw('Golo')}
                   disabled={participants.length === 0 || drawLoading}
-                  className="flex-1 bg-green-600 hover:bg-green-700 text-white font-black py-3 rounded-xl transition-colors disabled:opacity-40"
+                  className="bg-[#0096DC] hover:bg-[#0064B4] text-white font-semibold py-3 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  🥅 Golo
+                  Golo
                 </button>
                 <button
-                  onClick={() => runDraw('🏆 Final')}
+                  onClick={() => runDraw('Final')}
                   disabled={participants.length === 0 || drawLoading}
-                  className="flex-1 bg-red-600 hover:bg-red-700 text-white font-black py-3 rounded-xl transition-colors disabled:opacity-40"
+                  className="bg-[#0A0A0A] hover:bg-black text-white font-semibold py-3 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  🏆 Final
+                  Final
                 </button>
                 <button
                   onClick={() => setShowCustomInput(v => !v)}
                   disabled={participants.length === 0 || drawLoading}
-                  className="flex-1 bg-[#004AAD] hover:bg-[#00205B] text-white font-black py-3 rounded-xl transition-colors disabled:opacity-40"
+                  className="bg-white border border-[#0096DC] text-[#0096DC] hover:bg-[#0096DC]/5 font-semibold py-3 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  ✏️ Personalizado
+                  Personalizado
                 </button>
                 <button
                   onClick={exportCSV}
                   disabled={participants.length === 0}
-                  className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold px-4 py-3 rounded-xl transition-colors disabled:opacity-40"
+                  className="bg-white border border-[#E5E7EB] hover:bg-[#F7F8FA] text-[#0A0A0A] font-semibold py-3 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  CSV
+                  Exportar CSV
                 </button>
               </div>
+
               {showCustomInput && (
                 <form
                   onSubmit={e => {
@@ -339,90 +370,113 @@ function Dashboard() {
                     setCustomLabel('')
                     setShowCustomInput(false)
                   }}
-                  className="flex gap-2"
+                  className="flex gap-2 pt-1"
                 >
                   <input
                     autoFocus
                     value={customLabel}
                     onChange={e => setCustomLabel(e.target.value)}
-                    placeholder="Nome do sorteio (ex: Melhor Adepto)"
-                    className="flex-1 border border-gray-200 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#004AAD]"
+                    placeholder="Nome do sorteio (ex: Melhor adepto)"
+                    className="flex-1 bg-white border border-[#E5E7EB] rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-[#0096DC] focus:ring-2 focus:ring-[#0096DC]/20 transition"
                   />
-                  <button type="submit" className="bg-[#004AAD] text-white font-bold px-4 rounded-xl hover:bg-[#00205B]">
+                  <button
+                    type="submit"
+                    className="bg-[#0096DC] hover:bg-[#0064B4] text-white font-semibold px-5 rounded-lg transition-colors"
+                  >
                     Sortear
                   </button>
                 </form>
               )}
             </div>
-          </div>
+          </section>
         ) : (
-          <div className="bg-white rounded-2xl shadow p-5 text-center text-gray-400">
-            Nenhum jogo activo
-          </div>
+          <section className="bg-white border border-dashed border-[#E5E7EB] rounded-xl p-10 text-center">
+            <p className="text-[#6B7280] text-sm">Nenhum jogo activo</p>
+          </section>
         )}
 
-        {/* New game button / form */}
+        {/* New game */}
         {showNewGame ? (
-          <form onSubmit={startNewGame} className="bg-white rounded-2xl shadow p-5 flex gap-2">
+          <form
+            onSubmit={startNewGame}
+            className="bg-white border border-[#E5E7EB] rounded-xl p-4 flex gap-2"
+          >
             <input
               autoFocus
               value={newGameName}
               onChange={e => setNewGameName(e.target.value)}
               placeholder="Nome do jogo (ex: Portugal vs Brasil)"
-              className="flex-1 border border-gray-200 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#004AAD]"
+              className="flex-1 bg-white border border-[#E5E7EB] rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-[#0096DC] focus:ring-2 focus:ring-[#0096DC]/20 transition"
             />
-            <button type="submit" className="bg-[#004AAD] text-white font-bold px-4 rounded-xl hover:bg-[#00205B] transition-colors">
+            <button
+              type="submit"
+              className="bg-[#0096DC] hover:bg-[#0064B4] text-white font-semibold px-5 rounded-lg transition-colors"
+            >
               Iniciar
             </button>
-            <button type="button" onClick={() => setShowNewGame(false)} className="text-gray-400 px-2">
-              ✕
+            <button
+              type="button"
+              onClick={() => setShowNewGame(false)}
+              className="text-[#6B7280] hover:text-[#0A0A0A] px-3 transition-colors"
+            >
+              Cancelar
             </button>
           </form>
         ) : (
           <button
             onClick={() => setShowNewGame(true)}
-            className="w-full bg-[#004AAD] hover:bg-[#00205B] text-white font-black text-lg py-3 rounded-2xl transition-colors"
+            className="w-full bg-[#0096DC] hover:bg-[#0064B4] text-white font-semibold text-base py-3.5 rounded-xl transition-colors"
           >
-            + Iniciar Novo Jogo
+            Iniciar novo jogo
           </button>
         )}
 
-        {/* Draw history */}
+        {/* Draws */}
         {draws.length > 0 && (
-          <div className="bg-white rounded-2xl shadow p-5">
-            <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">Sorteios</h3>
-            <div className="space-y-2">
+          <section className="bg-white border border-[#E5E7EB] rounded-xl p-6">
+            <h3 className="text-[10px] font-semibold text-[#6B7280] uppercase tracking-[0.2em] mb-4">
+              Sorteios desta sessão
+            </h3>
+            <div className="divide-y divide-[#E5E7EB]">
               {draws.map(d => (
-                <div key={d.id} className="flex justify-between items-center py-1 text-sm">
-                  <span className="font-medium text-gray-700">{d.label}</span>
-                  <span className="font-semibold text-[#004AAD]">{d.participants?.name ?? '—'}</span>
-                  <span className="text-gray-400 text-xs">{new Date(d.drawn_at).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}</span>
+                <div key={d.id} className="grid grid-cols-3 items-center py-2.5 text-sm">
+                  <span className="font-medium text-[#0A0A0A]">{d.label}</span>
+                  <span className="font-medium text-[#0096DC] text-center">
+                    {d.participants?.name ?? '—'}
+                  </span>
+                  <span className="text-[#6B7280] text-xs text-right tabular-nums">
+                    {new Date(d.drawn_at).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}
+                  </span>
                 </div>
               ))}
             </div>
-          </div>
+          </section>
         )}
 
-        {/* Session history */}
+        {/* History */}
         {sessions.filter(s => s.status === 'closed').length > 0 && (
-          <div className="bg-white rounded-2xl shadow p-5">
-            <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">Histórico</h3>
-            <div className="space-y-2">
+          <section className="bg-white border border-[#E5E7EB] rounded-xl p-6">
+            <h3 className="text-[10px] font-semibold text-[#6B7280] uppercase tracking-[0.2em] mb-4">
+              Histórico
+            </h3>
+            <div className="divide-y divide-[#E5E7EB]">
               {sessions.filter(s => s.status === 'closed').map(s => (
-                <div key={s.id} className="flex justify-between items-center py-1 text-sm">
-                  <span className="font-medium text-gray-700">{s.name}</span>
-                  <span className="text-gray-400">{new Date(s.created_at).toLocaleDateString('pt-PT')}</span>
+                <div key={s.id} className="flex justify-between items-center py-2.5 text-sm">
+                  <span className="font-medium text-[#0A0A0A]">{s.name}</span>
+                  <span className="text-[#6B7280] text-xs tabular-nums">
+                    {new Date(s.created_at).toLocaleDateString('pt-PT')}
+                  </span>
                 </div>
               ))}
             </div>
-          </div>
+          </section>
         )}
       </div>
     </div>
   )
 }
 
-// ─── Drawing Animation (separate component to avoid conditional hook) ─────────
+// ─── Drawing Animation ─────────
 
 function DrawingAnimation({ names }: { names: string[] }) {
   const [count, setCount] = useState(0)
@@ -432,15 +486,28 @@ function DrawingAnimation({ names }: { names: string[] }) {
   }, [])
   const displayed = names.length > 0 ? names[count % names.length] : '…'
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#00205B] to-[#004AAD] flex flex-col items-center justify-center text-white text-center p-8">
-      <div className="text-6xl mb-4 animate-spin">🎰</div>
-      <div className="text-5xl font-black mb-2 tabular-nums min-w-64 truncate">{displayed}</div>
-      <p className="opacity-60">A sortear…</p>
+    <div className="min-h-screen bg-white flex flex-col">
+      <header className="border-b border-[#E5E7EB] px-6 py-4">
+        <ActiveBankLogo />
+      </header>
+      <main className="flex-1 flex flex-col items-center justify-center text-center px-8">
+        <p className="text-sm font-medium tracking-[0.3em] uppercase text-[#0096DC] mb-6">
+          A sortear
+        </p>
+        <div className="text-5xl sm:text-6xl font-semibold tracking-tight tabular-nums min-w-64 truncate text-[#0A0A0A]">
+          {displayed}
+        </div>
+        <div className="mt-10 flex gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-[#0096DC] animate-pulse-dot" />
+          <span className="w-2 h-2 rounded-full bg-[#0096DC] animate-pulse-dot" style={{ animationDelay: '0.2s' }} />
+          <span className="w-2 h-2 rounded-full bg-[#0096DC] animate-pulse-dot" style={{ animationDelay: '0.4s' }} />
+        </div>
+      </main>
     </div>
   )
 }
 
-// ─── Root ─────────────────────────────────────────────────────────────────────
+// ─── Root ─────────────────────────────
 
 export default function AdminPage() {
   const [state, setState] = useState<AdminState>('pin')
@@ -449,13 +516,18 @@ export default function AdminPage() {
     : <Dashboard />
 }
 
-function ActiveBankLogo() {
+function ActiveBankLogo({ invert = false }: { invert?: boolean }) {
+  const text = invert ? 'text-white' : 'text-[#0A0A0A]'
+  const dot = invert ? 'bg-white' : 'bg-[#0096DC]'
+  const dotText = invert ? 'text-[#0096DC]' : 'text-white'
   return (
-    <div className="flex items-center gap-2">
-      <div className="w-9 h-9 rounded-full bg-[#E8B400] flex items-center justify-center font-black text-[#00205B]">
-        AB
+    <div className="flex items-center gap-2.5">
+      <div className={`w-7 h-7 rounded-full ${dot} flex items-center justify-center`}>
+        <span className={`${dotText} font-bold text-xs`}>A</span>
       </div>
-      <span className="font-bold tracking-tight text-white">Active Bank</span>
+      <span className={`text-base font-semibold tracking-tight ${text}`}>
+        ActivoBank
+      </span>
     </div>
   )
 }
