@@ -25,6 +25,13 @@ type Winner = {
 type AdminState = 'pin' | 'dashboard'
 type RaffleState = 'idle' | 'drawing' | 'done'
 
+type DrawResult = {
+  id: string
+  label: string
+  drawn_at: string
+  participants: { name: string; phone: string } | null
+}
+
 const CORRECT_PIN = process.env.NEXT_PUBLIC_ADMIN_PIN ?? '1234'
 const MAX_PIN_ATTEMPTS = 5
 
@@ -98,6 +105,11 @@ function Dashboard() {
   const [winner, setWinner] = useState<Winner | null>(null)
   const [newGameName, setNewGameName] = useState('')
   const [showNewGame, setShowNewGame] = useState(false)
+  const [draws, setDraws] = useState<DrawResult[]>([])
+  const [drawWinner, setDrawWinner] = useState<{ name: string; phone: string; label: string } | null>(null)
+  const [customLabel, setCustomLabel] = useState('')
+  const [showCustomInput, setShowCustomInput] = useState(false)
+  const [drawLoading, setDrawLoading] = useState(false)
 
   const fetchSessions = useCallback(async () => {
     const res = await fetch('/api/sessions')
@@ -117,6 +129,11 @@ function Dashboard() {
     if (res.ok) setParticipants(await res.json())
   }, [])
 
+  const fetchDraws = useCallback(async (sessionId: string) => {
+    const res = await fetch(`/api/draws?session_id=${sessionId}`)
+    if (res.ok) setDraws(await res.json())
+  }, [])
+
   useEffect(() => {
     fetchSessions()
     const iv = setInterval(fetchSessions, 5000)
@@ -124,11 +141,15 @@ function Dashboard() {
   }, [fetchSessions])
 
   useEffect(() => {
-    if (!activeSession) { setParticipants([]); return }
+    if (!activeSession) { setParticipants([]); setDraws([]); return }
     fetchParticipants(activeSession.id)
-    const iv = setInterval(() => fetchParticipants(activeSession.id), 4000)
+    fetchDraws(activeSession.id)
+    const iv = setInterval(() => {
+      fetchParticipants(activeSession.id)
+      fetchDraws(activeSession.id)
+    }, 4000)
     return () => clearInterval(iv)
-  }, [activeSession?.id, fetchParticipants])
+  }, [activeSession?.id, fetchParticipants, fetchDraws])
 
   async function startNewGame(e: FormEvent) {
     e.preventDefault()
@@ -143,6 +164,24 @@ function Dashboard() {
     setWinner(null)
     setRaffleState('idle')
     fetchSessions()
+  }
+
+  async function runDraw(label: string) {
+    if (drawLoading) return
+    setDrawLoading(true)
+    const res = await fetch('/api/draws', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ label }),
+    })
+    const data = await res.json()
+    setDrawLoading(false)
+    if (res.ok) {
+      setDrawWinner({ ...data.winner, label: data.draw.label })
+      if (activeSession) fetchDraws(activeSession.id)
+    } else {
+      alert(data.error)
+    }
   }
 
   async function runRaffle() {
@@ -176,6 +215,24 @@ function Dashboard() {
     a.href = url
     a.download = `${activeSession.name.replace(/\s+/g, '_')}_participantes.csv`
     a.click()
+  }
+
+  // ── Draw winner overlay ──
+  if (drawWinner) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-[#00205B] to-[#004AAD] flex flex-col items-center justify-center text-white text-center p-8">
+        <div className="text-6xl mb-2">{drawWinner.label.startsWith('🥅') ? '🥅' : drawWinner.label.startsWith('🏆') ? '🏆' : '🎉'}</div>
+        <p className="text-xl opacity-70 mb-1 uppercase tracking-widest">{drawWinner.label}</p>
+        <p className="text-5xl font-black mb-2">{drawWinner.name}</p>
+        <p className="text-2xl opacity-70 mb-8">{drawWinner.phone}</p>
+        <button
+          onClick={() => setDrawWinner(null)}
+          className="bg-white text-[#00205B] font-black px-8 py-3 rounded-xl text-lg hover:bg-gray-100 transition-colors"
+        >
+          Continuar Jogo
+        </button>
+      </div>
+    )
   }
 
   // ── Drawing animation ──
@@ -242,21 +299,60 @@ function Dashboard() {
               </div>
             )}
 
-            <div className="flex gap-2 flex-wrap">
-              <button
-                onClick={runRaffle}
-                disabled={participants.length === 0}
-                className="flex-1 bg-red-600 hover:bg-red-700 text-white font-black text-lg py-3 rounded-xl transition-colors disabled:opacity-40"
-              >
-                🎰 SORTEAR AGORA
-              </button>
-              <button
-                onClick={exportCSV}
-                disabled={participants.length === 0}
-                className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold px-4 py-3 rounded-xl transition-colors disabled:opacity-40"
-              >
-                CSV
-              </button>
+            <div className="flex flex-col gap-2">
+              <div className="flex gap-2 flex-wrap">
+                <button
+                  onClick={() => runDraw('🥅 Golo')}
+                  disabled={participants.length === 0 || drawLoading}
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white font-black py-3 rounded-xl transition-colors disabled:opacity-40"
+                >
+                  🥅 Golo
+                </button>
+                <button
+                  onClick={() => runDraw('🏆 Final')}
+                  disabled={participants.length === 0 || drawLoading}
+                  className="flex-1 bg-red-600 hover:bg-red-700 text-white font-black py-3 rounded-xl transition-colors disabled:opacity-40"
+                >
+                  🏆 Final
+                </button>
+                <button
+                  onClick={() => setShowCustomInput(v => !v)}
+                  disabled={participants.length === 0 || drawLoading}
+                  className="flex-1 bg-[#004AAD] hover:bg-[#00205B] text-white font-black py-3 rounded-xl transition-colors disabled:opacity-40"
+                >
+                  ✏️ Personalizado
+                </button>
+                <button
+                  onClick={exportCSV}
+                  disabled={participants.length === 0}
+                  className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold px-4 py-3 rounded-xl transition-colors disabled:opacity-40"
+                >
+                  CSV
+                </button>
+              </div>
+              {showCustomInput && (
+                <form
+                  onSubmit={e => {
+                    e.preventDefault()
+                    if (!customLabel.trim()) return
+                    runDraw(customLabel.trim())
+                    setCustomLabel('')
+                    setShowCustomInput(false)
+                  }}
+                  className="flex gap-2"
+                >
+                  <input
+                    autoFocus
+                    value={customLabel}
+                    onChange={e => setCustomLabel(e.target.value)}
+                    placeholder="Nome do sorteio (ex: Melhor Adepto)"
+                    className="flex-1 border border-gray-200 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#004AAD]"
+                  />
+                  <button type="submit" className="bg-[#004AAD] text-white font-bold px-4 rounded-xl hover:bg-[#00205B]">
+                    Sortear
+                  </button>
+                </form>
+              )}
             </div>
           </div>
         ) : (
@@ -289,6 +385,22 @@ function Dashboard() {
           >
             + Iniciar Novo Jogo
           </button>
+        )}
+
+        {/* Draw history */}
+        {draws.length > 0 && (
+          <div className="bg-white rounded-2xl shadow p-5">
+            <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">Sorteios</h3>
+            <div className="space-y-2">
+              {draws.map(d => (
+                <div key={d.id} className="flex justify-between items-center py-1 text-sm">
+                  <span className="font-medium text-gray-700">{d.label}</span>
+                  <span className="font-semibold text-[#004AAD]">{d.participants?.name ?? '—'}</span>
+                  <span className="text-gray-400 text-xs">{new Date(d.drawn_at).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}</span>
+                </div>
+              ))}
+            </div>
+          </div>
         )}
 
         {/* Session history */}
