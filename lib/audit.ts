@@ -1,3 +1,5 @@
+import { supabaseAdmin } from './supabase'
+
 type AuditEvent =
   | { event: 'admin.login.success'; ip: string }
   | { event: 'admin.login.failure'; ip: string; attemptsRemaining: number }
@@ -11,5 +13,14 @@ type AuditEvent =
   | { event: 'rate_limit.exceeded'; endpoint: string; ip: string }
 
 export function audit(data: AuditEvent): void {
-  console.log(JSON.stringify({ ts: new Date().toISOString(), ...data }))
+  const entry = { ts: new Date().toISOString(), ...data }
+  // Always log to console as immediate backup
+  console.log(JSON.stringify(entry))
+  // Persist to DB asynchronously — fire-and-forget, never blocks the request
+  supabaseAdmin
+    .from('audit_log')
+    .insert({ event: data.event, payload: entry })
+    .then(({ error }) => {
+      if (error) console.error('[audit] persist failed:', error.message)
+    })
 }

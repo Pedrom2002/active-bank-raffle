@@ -13,7 +13,7 @@ export async function signAdminToken(): Promise<string> {
   return new SignJWT({ role: 'admin' })
     .setProtectedHeader({ alg: ALGORITHM })
     .setIssuedAt()
-    .setExpirationTime('8h')
+    .setExpirationTime('2h')
     .sign(getSecret())
 }
 

@@ -5,6 +5,7 @@ import { pickWinner } from '@/lib/raffle'
 import { requireAdmin } from '@/lib/require-admin'
 import { isAdminAuthenticated } from '@/lib/admin-auth'
 import { audit } from '@/lib/audit'
+import { getClientIp } from '@/lib/request-ip'
 
 const uuidRe = /^[0-9a-f-]{36}$/i
 
@@ -19,7 +20,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     .select('id, label, status, duration_sec, starts_at, ends_at, winner_id, created_at, raffle_participants!raffles_winner_id_fkey(name)')
     .eq('id', id)
     .single()
-  if (error) return Response.json({ error: error.message }, { status: 404 })
+  if (error) {
+    console.error('[raffles/id] GET error:', error.message)
+    return Response.json({ error: 'Raffle not found.' }, { status: 404 })
+  }
 
   if (!isAdmin && data.raffle_participants) {
     // Strip PII from winner for non-admin
@@ -37,7 +41,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const { id } = await params
   if (!uuidRe.test(id)) return Response.json({ error: 'Invalid id.' }, { status: 400 })
 
-  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
+  const ip = getClientIp(req)
   const body = await req.json().catch(() => null)
   const parsed = z.object({ action: z.enum(['close', 'draw']) }).safeParse(body)
   if (!parsed.success) return Response.json({ error: 'action must be close or draw' }, { status: 400 })
@@ -51,7 +55,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       .eq('id', id)
       .select('id, label, status, duration_sec, starts_at, ends_at, winner_id, created_at')
       .single()
-    if (error) return Response.json({ error: error.message }, { status: 500 })
+    if (error) {
+      console.error('[raffles/id] close error:', error.message)
+      return Response.json({ error: 'Internal server error.' }, { status: 500 })
+    }
     audit({ event: 'raffle.closed', raffleId: id, ip })
     return Response.json(data)
   }
@@ -59,19 +66,25 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   // action === 'draw'
   const { data: raffle, error: raffleErr } = await supabaseAdmin
     .from('raffles')
-    .select('id, status')
+    .select('id, status, winner_id')
     .eq('id', id)
     .single()
   if (raffleErr || !raffle) return Response.json({ error: 'Raffle not found' }, { status: 404 })
   if (raffle.status !== 'closed') {
     return Response.json({ error: 'Close the raffle before drawing a winner' }, { status: 400 })
   }
+  if (raffle.winner_id) {
+    return Response.json({ error: 'Winner already drawn. Cannot re-draw.' }, { status: 409 })
+  }
 
   const { data: participants, error: partErr } = await supabaseAdmin
     .from('raffle_participants')
     .select('id, raffle_id, name, registered_at')
     .eq('raffle_id', id)
-  if (partErr) return Response.json({ error: partErr.message }, { status: 500 })
+  if (partErr) {
+    console.error('[raffles/id] draw participants error:', partErr.message)
+    return Response.json({ error: 'Internal server error.' }, { status: 500 })
+  }
   if (!participants || participants.length === 0) {
     return Response.json({ error: 'No participants in this raffle' }, { status: 400 })
   }
@@ -83,7 +96,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     .eq('id', id)
     .select('id, label, status, duration_sec, starts_at, ends_at, winner_id, created_at')
     .single()
-  if (error) return Response.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('[raffles/id] draw winner error:', error.message)
+    return Response.json({ error: 'Internal server error.' }, { status: 500 })
+  }
 
   audit({ event: 'raffle.winner.selected', raffleId: id, winnerId: winner.id, totalParticipants: participants.length, ip })
   return Response.json({ raffle: data, winner })

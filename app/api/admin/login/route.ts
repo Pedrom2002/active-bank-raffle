@@ -4,11 +4,12 @@ import { signAdminToken, ADMIN_COOKIE } from '@/lib/admin-auth'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { audit } from '@/lib/audit'
 import { getEnv } from '@/lib/env'
+import { getClientIp } from '@/lib/request-ip'
 
-const schema = z.object({ pin: z.string().length(4).regex(/^\d{4}$/) })
+const schema = z.object({ pin: z.string().min(1) })
 
 export async function POST(req: NextRequest) {
-  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
+  const ip = getClientIp(req)
 
   const allowed = await checkRateLimit(`admin-login:${ip}`, 10, 900)
   if (!allowed) {
@@ -37,13 +38,11 @@ export async function POST(req: NextRequest) {
       'Set-Cookie': [
         `${ADMIN_COOKIE}=${token}`,
         'HttpOnly',
+        'Secure',
         'SameSite=Strict',
         'Path=/',
-        'Max-Age=28800',
-        process.env.NODE_ENV === 'production' ? 'Secure' : '',
-      ]
-        .filter(Boolean)
-        .join('; '),
+        'Max-Age=7200',
+      ].join('; '),
     },
   })
 }

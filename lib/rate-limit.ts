@@ -3,7 +3,7 @@ import { supabaseAdmin } from './supabase'
 /**
  * Sliding-window rate limiter backed by Supabase.
  * Returns true if the request is allowed, false if the limit is exceeded.
- * Fails open on DB error to avoid blocking legitimate users.
+ * Fails closed on DB error — denies the request rather than bypassing limits.
  */
 export async function checkRateLimit(
   key: string,
@@ -22,12 +22,12 @@ export async function checkRateLimit(
 
     if (error) {
       console.error('[rate-limit] db error:', error.message)
-      return true // fail open
+      return false // fail closed — deny on uncertainty
     }
 
     return (data as number) <= limit
   } catch (err) {
     console.error('[rate-limit] unexpected error:', err)
-    return true // fail open
+    return false // fail closed — deny on uncertainty
   }
 }

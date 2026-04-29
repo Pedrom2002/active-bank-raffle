@@ -17,7 +17,6 @@ type RaffleQR = {
   label: string
   ends_at: number
   qr_data_url: string
-  register_url: string
 }
 
 type Winner = {

@@ -5,11 +5,15 @@ const serverEnvSchema = z.object({
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1, 'NEXT_PUBLIC_SUPABASE_ANON_KEY is required'),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1, 'SUPABASE_SERVICE_ROLE_KEY is required'),
   QR_SECRET: z.string().min(32, 'QR_SECRET must be at least 32 characters'),
-  ADMIN_PIN: z.string().min(4, 'ADMIN_PIN must be at least 4 characters'),
+  ADMIN_PIN: z
+    .string()
+    .min(12, 'ADMIN_PIN must be at least 12 characters')
+    .regex(/^[A-Za-z0-9!@#$%^&*]{12,}$/, 'ADMIN_PIN must contain only alphanumeric and !@#$%^&* characters'),
   ADMIN_SESSION_SECRET: z
     .string()
     .min(32, 'ADMIN_SESSION_SECRET must be at least 32 characters — generate with: openssl rand -hex 32'),
   NEXT_PUBLIC_APP_URL: z.string().min(1, 'NEXT_PUBLIC_APP_URL is required'),
+  CRON_SECRET: z.string().min(32, 'CRON_SECRET must be at least 32 characters — generate with: openssl rand -hex 32'),
 })
 
 export type ServerEnv = z.infer<typeof serverEnvSchema>

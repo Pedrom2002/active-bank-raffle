@@ -6,12 +6,13 @@ import { checkRateLimit } from '@/lib/rate-limit'
 import { isAdminAuthenticated } from '@/lib/admin-auth'
 import { requireAdmin } from '@/lib/require-admin'
 import { audit } from '@/lib/audit'
+import { getClientIp } from '@/lib/request-ip'
 
 const uuidRe = /^[0-9a-f-]{36}$/i
 
 const registerSchema = z.object({
   name: z.string().min(1).max(100),
-  phone: z.string().regex(/^\+?[0-9\s\-]{7,20}$/, 'Invalid phone number'),
+  phone: z.string().regex(/^\+?[1-9]\d{6,14}$/, 'Invalid phone number'),
   email: z.string().email().max(200),
   token: z.string().min(1),
   consent: z.boolean().refine((v) => v === true, 'Consent required'),
@@ -29,12 +30,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     .select(selectFields)
     .eq('raffle_id', id)
     .order('registered_at', { ascending: false })
-  if (error) return Response.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('[participants] GET error:', error.message)
+    return Response.json({ error: 'Internal server error.' }, { status: 500 })
+  }
   return Response.json(data)
 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
+  const ip = getClientIp(req)
   const allowed = await checkRateLimit(`register:${ip}`, 5, 600)
   if (!allowed) {
     audit({ event: 'rate_limit.exceeded', endpoint: 'participants.register', ip })
@@ -89,12 +93,34 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   const deny = await requireAdmin(req)
   if (deny) return deny
 
-  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
+  const ip = getClientIp(req)
+
+  const allowed = await checkRateLimit(`delete-participant:${ip}`, 20, 3600)
+  if (!allowed) {
+    audit({ event: 'rate_limit.exceeded', endpoint: 'participants.delete', ip })
+    return Response.json({ error: 'Too many deletion requests.' }, { status: 429 })
+  }
+
   const { id: raffleId } = await params
   const participantId = req.nextUrl.searchParams.get('participant_id')
 
+  if (!raffleId || !uuidRe.test(raffleId)) {
+    return Response.json({ error: 'Invalid raffle id.' }, { status: 400 })
+  }
   if (!participantId || !uuidRe.test(participantId)) {
     return Response.json({ error: 'Invalid participant_id.' }, { status: 400 })
+  }
+
+  // Verify participant belongs to this raffle before deleting (prevents IDOR)
+  const { data: participant, error: lookupError } = await supabaseAdmin
+    .from('raffle_participants')
+    .select('id')
+    .eq('id', participantId)
+    .eq('raffle_id', raffleId)
+    .single()
+
+  if (lookupError || !participant) {
+    return Response.json({ error: 'Participant not found in this raffle.' }, { status: 404 })
   }
 
   const { error } = await supabaseAdmin.rpc('delete_raffle_participant_data', {
