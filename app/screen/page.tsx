@@ -1,212 +1,154 @@
 'use client'
 
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 
-type QRData = {
-  session_id: string
-  session_name: string
+type Raffle = {
+  id: string
+  label: string
+  status: 'active' | 'closed'
+  duration_sec: number
+  starts_at: string
+  ends_at: string | null
+  winner_id: string | null
+}
+
+type RaffleQR = {
+  raffle_id: string
+  label: string
+  ends_at: number
   qr_data_url: string
-  expires_at: number
+  register_url: string
 }
 
 type Winner = {
+  raffle_id: string
+  label: string
   name: string
+  phone: string
 }
 
 export default function ScreenPage() {
-  const [qr, setQr] = useState<QRData | null>(null)
-  const [countdown, setCountdown] = useState(0)
-  const [count, setCount] = useState(0)
+  const [activeRaffles, setActiveRaffles] = useState<Raffle[]>([])
+  const [qrMap, setQrMap] = useState<Record<string, RaffleQR>>({})
   const [winner, setWinner] = useState<Winner | null>(null)
-  const [noSession, setNoSession] = useState(false)
-  const [latestDraw, setLatestDraw] = useState<{ label: string; winner: { name: string } } | null>(null)
-  const [drawVisible, setDrawVisible] = useState(false)
-  const lastDrawId = useRef<string | null>(null)
+  const [now, setNow] = useState(() => Date.now())
 
-  const fetchQR = useCallback(async () => {
-    const res = await fetch('/api/qr')
-    if (!res.ok) { setNoSession(true); return }
-    const data: QRData = await res.json()
-    setQr(data)
-    setNoSession(false)
+  useEffect(() => {
+    const iv = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(iv)
   }, [])
 
-  const fetchCount = useCallback(async (sessionId: string) => {
-    const res = await fetch(`/api/participants?session_id=${sessionId}`)
-    if (res.ok) {
-      const data = await res.json()
-      setCount(data.length)
-    }
-  }, [])
-
-  const fetchWinner = useCallback(async () => {
-    const res = await fetch('/api/raffle')
-    if (res.ok) {
-      const data = await res.json()
-      if (data.winner) setWinner(data.winner)
-    }
-  }, [])
-
-  const fetchLatestDraw = useCallback(async () => {
-    if (!qr?.session_id) return
-    const res = await fetch(`/api/draws?session_id=${qr.session_id}&latest=1`)
+  const fetchRaffles = useCallback(async () => {
+    const res = await fetch('/api/raffles')
     if (!res.ok) return
-    const data = await res.json()
-    if (!data.draw) return
-    if (data.draw.id === lastDrawId.current) return
-    lastDrawId.current = data.draw.id
-    setLatestDraw({
-      label: data.draw.label,
-      winner: data.draw.participants,
-    })
-    setDrawVisible(true)
-    setTimeout(() => setDrawVisible(false), 10_000)
-  }, [qr?.session_id])
+    const all: Raffle[] = await res.json()
+    const active = all.filter(r => r.status === 'active')
+    setActiveRaffles(active)
 
-  useEffect(() => { fetchQR() }, [fetchQR])
+    const justClosed = all.find(r => r.status === 'closed' && r.winner_id && !winner)
+    if (justClosed) {
+      const detailRes = await fetch(`/api/raffles/${justClosed.id}`)
+      if (detailRes.ok) {
+        const detail = await detailRes.json()
+        if (detail.raffle_participants) {
+          setWinner({ raffle_id: justClosed.id, label: justClosed.label, ...detail.raffle_participants })
+          setTimeout(() => setWinner(null), 12_000)
+        }
+      }
+    }
+  }, [winner])
 
-  useEffect(() => {
-    if (!qr) return
-    const interval = setInterval(() => {
-      const remaining = Math.max(0, Math.ceil((qr.expires_at - Date.now()) / 1000))
-      setCountdown(remaining)
-      if (remaining <= 1) fetchQR()
-    }, 1000)
-    return () => clearInterval(interval)
-  }, [qr, fetchQR])
-
-  useEffect(() => {
-    if (!qr?.session_id) return
-    fetchCount(qr.session_id)
-    const interval = setInterval(() => fetchCount(qr.session_id), 5000)
-    return () => clearInterval(interval)
-  }, [qr?.session_id, fetchCount])
-
-  useEffect(() => {
-    const interval = setInterval(fetchWinner, 3000)
-    return () => clearInterval(interval)
-  }, [fetchWinner])
+  const fetchQRs = useCallback(async (raffles: Raffle[]) => {
+    const entries = await Promise.all(
+      raffles.map(async r => {
+        const res = await fetch(`/api/raffles/${r.id}/qr`)
+        if (!res.ok) return null
+        const data: RaffleQR = await res.json()
+        return [r.id, data] as const
+      })
+    )
+    const map: Record<string, RaffleQR> = {}
+    for (const entry of entries) {
+      if (entry) map[entry[0]] = entry[1]
+    }
+    setQrMap(map)
+  }, [])
 
   useEffect(() => {
-    if (!qr?.session_id) return
-    fetchLatestDraw()
-    const interval = setInterval(fetchLatestDraw, 3000)
-    return () => clearInterval(interval)
-  }, [qr?.session_id, fetchLatestDraw])
+    fetchRaffles()
+    const iv = setInterval(fetchRaffles, 3000)
+    return () => clearInterval(iv)
+  }, [fetchRaffles])
 
-  // ── Final winner ──
+  useEffect(() => {
+    if (activeRaffles.length > 0) fetchQRs(activeRaffles)
+  }, [activeRaffles, fetchQRs])
+
   if (winner) {
     return (
-      <div className="min-h-screen bg-white flex flex-col">
-        <ScreenHeader />
-        <main className="flex-1 flex flex-col items-center justify-center px-8 text-center animate-fade-in-up">
-          <p className="text-sm font-medium tracking-[0.3em] uppercase text-[#0096DC] mb-6">
-            Vencedor do sorteio
-          </p>
-          <h1 className="text-7xl sm:text-8xl font-semibold tracking-tight text-[#0A0A0A] mb-4">
-            {winner.name}
-          </h1>
-          <div className="mt-12 h-1 w-24 bg-[#0096DC] rounded-full" />
-        </main>
-        <ScreenFooter />
-      </div>
-    )
-  }
-
-  // ── Per-draw overlay ──
-  if (drawVisible && latestDraw) {
-    return (
-      <div className="min-h-screen bg-[#0096DC] flex flex-col">
-        <header className="px-8 py-6">
-          <ActiveBankLogo invert />
+      <div className="min-h-screen bg-[#0096DC] flex flex-col text-white">
+        <header className="px-8 py-5">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo_activobank.svg" alt="ActivoBank" width={137} height={22} className="brightness-0 invert" />
         </header>
-        <main className="flex-1 flex flex-col items-center justify-center px-8 text-center text-white animate-fade-in-up">
-          <p className="text-sm font-medium tracking-[0.3em] uppercase opacity-80 mb-6">
-            {cleanLabel(latestDraw.label)}
-          </p>
-          <h1 className="text-7xl sm:text-8xl font-semibold tracking-tight mb-4">
-            {latestDraw.winner.name}
-          </h1>
+        <main className="flex-1 flex flex-col items-center justify-center text-center px-8">
+          <p className="text-sm font-medium tracking-[0.3em] uppercase opacity-80 mb-4">{winner.label}</p>
+          <div className="text-6xl mb-6" aria-hidden>🏆</div>
+          <h1 className="text-7xl sm:text-8xl font-semibold tracking-tight mb-3">{winner.name}</h1>
+          <p className="text-2xl opacity-80 tabular-nums">{winner.phone}</p>
         </main>
-        <footer className="px-8 py-4 text-center text-white/60 text-xs">
-          Fan Zone · Mundial 2026
-        </footer>
+        <footer className="px-8 py-4 text-center text-white/60 text-xs">Fan Zone · Mundial 2026</footer>
       </div>
     )
   }
 
-  // ── No active session ──
-  if (noSession) {
+  if (activeRaffles.length === 0) {
     return (
       <div className="min-h-screen bg-white flex flex-col">
         <ScreenHeader />
         <main className="flex-1 flex flex-col items-center justify-center px-8 text-center">
-          <div className="w-2 h-2 rounded-full bg-[#0096DC] mb-6 animate-pulse-dot" />
-          <h1 className="text-3xl font-semibold tracking-tight text-[#0A0A0A] mb-2">
-            Aguardar próximo jogo
+          <div className="w-3 h-3 rounded-full bg-[#0096DC] mb-8 animate-pulse" />
+          <h1 className="text-4xl font-semibold tracking-tight text-[#0A0A0A] mb-3">
+            Os sorteios aparecem aqui
           </h1>
-          <p className="text-[#6B7280]">A equipa ActivoBank irá iniciar a sessão em breve.</p>
+          <p className="text-[#6B7280] text-lg max-w-md">
+            Quando um sorteio for ativado, o QR code aparece neste ecrã. Fique atento!
+          </p>
         </main>
         <ScreenFooter />
       </div>
     )
   }
 
-  // ── QR / participation screen ──
   return (
     <div className="min-h-screen bg-white flex flex-col">
       <ScreenHeader />
-
-      <main className="flex-1 flex flex-col lg:flex-row items-center justify-center gap-12 px-8 py-10 max-w-7xl mx-auto w-full">
-        {/* Left: Title + CTA */}
-        <div className="flex-1 text-center lg:text-left max-w-xl">
-          <p className="text-sm font-medium tracking-[0.3em] uppercase text-[#0096DC] mb-4">
-            Sorteio Fan Zone
-          </p>
-          <h1 className="text-5xl sm:text-6xl font-semibold tracking-tight text-[#0A0A0A] leading-[1.05] mb-4">
-            {qr?.session_name ?? 'A carregar…'}
-          </h1>
-          <p className="text-xl text-[#6B7280] mb-10 leading-relaxed">
-            Aponta a câmara do telemóvel para o código QR e participa no sorteio.
-          </p>
-
-          <div className="grid grid-cols-2 gap-6 max-w-sm mx-auto lg:mx-0">
-            <Stat label="Participantes" value={count.toString()} />
-            <Stat label="Expira em" value={`${countdown}s`} />
-          </div>
-        </div>
-
-        {/* Right: QR */}
-        <div className="flex-shrink-0">
-          <div className="bg-white border border-[#E5E7EB] rounded-2xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.06)]">
-            {qr?.qr_data_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={qr.qr_data_url} alt="QR Code" className="w-80 h-80 sm:w-[420px] sm:h-[420px]" />
-            ) : (
-              <div className="w-80 h-80 sm:w-[420px] sm:h-[420px] animate-pulse bg-gray-100 rounded-xl" />
-            )}
-          </div>
-        </div>
+      <main className="flex-1 p-6 grid grid-cols-1 lg:grid-cols-2 gap-6 content-start max-w-7xl mx-auto w-full">
+        {activeRaffles.map(raffle => {
+          const qr = qrMap[raffle.id]
+          const endsAt = qr?.ends_at ?? (new Date(raffle.starts_at).getTime() + raffle.duration_sec * 1000)
+          const remaining = Math.max(0, Math.ceil((endsAt - now) / 1000))
+          return (
+            <div key={raffle.id} className="bg-white border border-[#E5E7EB] rounded-2xl p-6 shadow-sm flex flex-col items-center text-center">
+              <div className="flex items-center gap-2 mb-4">
+                <span className="w-2 h-2 rounded-full bg-[#0096DC] animate-pulse" />
+                <span className="text-xs font-medium text-[#0096DC] uppercase tracking-widest">Sorteio ativo</span>
+              </div>
+              <h2 className="text-3xl font-semibold tracking-tight text-[#0A0A0A] mb-5">{raffle.label}</h2>
+              <div className="bg-[#F7F8FA] rounded-xl p-4 mb-4">
+                {qr?.qr_data_url
+                  // eslint-disable-next-line @next/next/no-img-element
+                  ? <img src={qr.qr_data_url} alt="QR Code" className="w-56 h-56 sm:w-72 sm:h-72" />
+                  : <div className="w-56 h-56 sm:w-72 sm:h-72 bg-[#E5E7EB] rounded-lg animate-pulse" />
+                }
+              </div>
+              <p className="text-5xl font-semibold tabular-nums text-[#0096DC]">{remaining}s</p>
+              <p className="text-xs text-[#6B7280] mt-1 uppercase tracking-wider">Tempo restante</p>
+            </div>
+          )
+        })}
       </main>
-
       <ScreenFooter />
-    </div>
-  )
-}
-
-function cleanLabel(label: string): string {
-  return label.replace(/^[\p{Extended_Pictographic}\s]+/u, '').trim()
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <div className="text-5xl font-semibold tracking-tight text-[#0A0A0A] tabular-nums">
-        {value}
-      </div>
-      <div className="text-xs text-[#6B7280] uppercase tracking-wider mt-1">
-        {label}
-      </div>
     </div>
   )
 }
@@ -214,10 +156,9 @@ function Stat({ label, value }: { label: string; value: string }) {
 function ScreenHeader() {
   return (
     <header className="border-b border-[#E5E7EB] px-8 py-5 flex items-center justify-between">
-      <ActiveBankLogo />
-      <span className="text-xs text-[#6B7280] uppercase tracking-[0.2em]">
-        Fan Zone · Mundial 2026
-      </span>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/logo_activobank.svg" alt="ActivoBank" width={137} height={22} />
+      <span className="text-xs text-[#6B7280] uppercase tracking-[0.2em]">Fan Zone · Mundial 2026</span>
     </header>
   )
 }
@@ -225,25 +166,7 @@ function ScreenHeader() {
 function ScreenFooter() {
   return (
     <footer className="border-t border-[#E5E7EB] px-8 py-4 text-center">
-      <p className="text-xs text-[#6B7280]">
-        Sorteio promovido pelo ActivoBank · Participação gratuita
-      </p>
+      <p className="text-xs text-[#6B7280]">Sorteio promovido pelo ActivoBank · Participação gratuita</p>
     </footer>
-  )
-}
-
-function ActiveBankLogo({ invert = false }: { invert?: boolean }) {
-  const text = invert ? 'text-white' : 'text-[#0A0A0A]'
-  const dot = invert ? 'bg-white' : 'bg-[#0096DC]'
-  const dotText = invert ? 'text-[#0096DC]' : 'text-white'
-  return (
-    <div className="flex items-center gap-2.5">
-      <div className={`w-8 h-8 rounded-full ${dot} flex items-center justify-center`}>
-        <span className={`${dotText} font-bold text-sm`}>A</span>
-      </div>
-      <span className={`text-lg font-semibold tracking-tight ${text}`}>
-        ActivoBank
-      </span>
-    </div>
   )
 }

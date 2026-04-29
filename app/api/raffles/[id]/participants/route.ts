@@ -1,0 +1,111 @@
+import { NextRequest } from 'next/server'
+import { z } from 'zod'
+import { supabaseAdmin } from '@/lib/supabase'
+import { validateToken } from '@/lib/tokens'
+import { checkRateLimit } from '@/lib/rate-limit'
+import { isAdminAuthenticated } from '@/lib/admin-auth'
+import { requireAdmin } from '@/lib/require-admin'
+import { audit } from '@/lib/audit'
+
+const uuidRe = /^[0-9a-f-]{36}$/i
+
+const registerSchema = z.object({
+  name: z.string().min(1).max(100),
+  phone: z.string().regex(/^\+?[0-9\s\-]{7,20}$/, 'Invalid phone number'),
+  email: z.string().email().max(200),
+  token: z.string().min(1),
+  consent: z.boolean().refine((v) => v === true, 'Consent required'),
+})
+
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  if (!uuidRe.test(id)) return Response.json({ error: 'Invalid id.' }, { status: 400 })
+
+  const isAdmin = await isAdminAuthenticated(req)
+  const selectFields = isAdmin ? 'id, raffle_id, name, phone, email, registered_at' : 'id, raffle_id, name, registered_at'
+
+  const { data, error } = await supabaseAdmin
+    .from('raffle_participants')
+    .select(selectFields)
+    .eq('raffle_id', id)
+    .order('registered_at', { ascending: false })
+  if (error) return Response.json({ error: error.message }, { status: 500 })
+  return Response.json(data)
+}
+
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
+  const allowed = await checkRateLimit(`register:${ip}`, 5, 600)
+  if (!allowed) {
+    audit({ event: 'rate_limit.exceeded', endpoint: 'participants.register', ip })
+    return Response.json({ error: 'Demasiadas inscrições. Tenta de novo mais tarde.' }, { status: 429 })
+  }
+
+  const { id } = await params
+  if (!uuidRe.test(id)) return Response.json({ error: 'Invalid id.' }, { status: 400 })
+
+  const body = await req.json().catch(() => null)
+  const parsed = registerSchema.safeParse(body)
+  if (!parsed.success) {
+    return Response.json({ error: 'Dados inválidos. Verifica o formulário.' }, { status: 400 })
+  }
+
+  const { name, phone, email, token } = parsed.data
+
+  const { data: raffle, error: raffleErr } = await supabaseAdmin
+    .from('raffles')
+    .select('id, label, status')
+    .eq('id', id)
+    .single()
+
+  if (raffleErr || !raffle) return Response.json({ error: 'Raffle not found' }, { status: 404 })
+  if (raffle.status !== 'active') {
+    return Response.json({ error: 'Este sorteio já encerrou.' }, { status: 410 })
+  }
+
+  if (!validateToken(id, token)) {
+    return Response.json({ error: 'QR code expirado. Escaneia o código mais recente no ecrã.' }, { status: 422 })
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from('raffle_participants')
+    .insert({ raffle_id: id, name: name.trim(), phone: phone.trim(), email: email.trim() })
+    .select('id, raffle_id, name, registered_at')
+    .single()
+
+  if (error) {
+    if (error.code === '23505') {
+      return Response.json({ error: 'Já estás inscrito neste sorteio!' }, { status: 409 })
+    }
+    console.error('[participants] POST error:', error.message)
+    return Response.json({ error: 'Erro ao registar. Tenta de novo.' }, { status: 500 })
+  }
+
+  audit({ event: 'participant.registered', raffleId: id, participantId: data.id, ip })
+  return Response.json({ ...data, raffle_label: raffle.label }, { status: 201 })
+}
+
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const deny = await requireAdmin(req)
+  if (deny) return deny
+
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
+  const { id: raffleId } = await params
+  const participantId = req.nextUrl.searchParams.get('participant_id')
+
+  if (!participantId || !uuidRe.test(participantId)) {
+    return Response.json({ error: 'Invalid participant_id.' }, { status: 400 })
+  }
+
+  const { error } = await supabaseAdmin.rpc('delete_raffle_participant_data', {
+    p_participant_id: participantId,
+  })
+
+  if (error) {
+    console.error('[participants] DELETE error:', error.message)
+    return Response.json({ error: 'Failed to delete participant data.' }, { status: 500 })
+  }
+
+  audit({ event: 'participant.deleted', participantId, raffleId, ip })
+  return Response.json({ ok: true })
+}
