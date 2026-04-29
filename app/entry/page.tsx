@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, FormEvent } from 'react'
+import { PageHeader, PageFooter } from '@/app/components/PageShell'
 
 type State = 'idle' | 'loading' | 'success' | 'error'
 
@@ -16,16 +17,21 @@ export default function EntryPage() {
     e.preventDefault()
     if (!consent) return
     setState('loading')
-    const res = await fetch('/api/entry', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, phone, email, consent }),
-    })
-    const data = await res.json()
-    if (res.ok) {
-      setState('success')
-    } else {
-      setMessage(data.error ?? 'Erro inesperado.')
+    try {
+      const res = await fetch('/api/entry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, phone, email, consent }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setState('success')
+      } else {
+        setMessage(data.error ?? 'Erro inesperado.')
+        setState('error')
+      }
+    } catch {
+      setMessage('Erro de ligação. Tenta de novo.')
       setState('error')
     }
   }
@@ -33,7 +39,7 @@ export default function EntryPage() {
   if (state === 'success') {
     return (
       <div className="min-h-screen bg-white flex flex-col">
-        <Header />
+        <PageHeader />
         <main className="flex-1 flex flex-col items-center justify-center px-6 text-center">
           <div className="w-16 h-16 rounded-full bg-[#0096DC]/10 flex items-center justify-center mb-6">
             <svg className="w-8 h-8 text-[#0096DC]" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
@@ -45,14 +51,14 @@ export default function EntryPage() {
             Fique atento ao ecrã. Quando um sorteio for ativado, leia o QR code para participar.
           </p>
         </main>
-        <Footer />
+        <PageFooter />
       </div>
     )
   }
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
-      <Header />
+      <PageHeader />
       <main className="flex-1 flex items-center justify-center px-6 py-10">
         <div className="w-full max-w-sm">
           <h1 className="text-3xl font-semibold tracking-tight text-[#0A0A0A] mb-2">Entrar no Lounge</h1>
@@ -76,7 +82,7 @@ export default function EntryPage() {
             <div>
               <label htmlFor="phone" className="block text-xs font-medium text-[#6B7280] mb-1.5">Telemóvel</label>
               <input id="phone" type="tel" required value={phone} onChange={e => setPhone(e.target.value)}
-                placeholder="+351 9XX XXX XXX"
+                placeholder="+351912345678"
                 className="w-full bg-white border border-[#E5E7EB] rounded-lg px-4 py-3 text-[#0A0A0A] placeholder:text-gray-400 focus:outline-none focus:border-[#0096DC] focus:ring-2 focus:ring-[#0096DC]/20 transition" />
             </div>
             <div>
@@ -109,24 +115,7 @@ export default function EntryPage() {
           </form>
         </div>
       </main>
-      <Footer />
+      <PageFooter />
     </div>
-  )
-}
-
-function Header() {
-  return (
-    <header className="border-b border-[#E5E7EB] px-6 py-4">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/logo_activobank.svg" alt="ActivoBank" width={137} height={22} />
-    </header>
-  )
-}
-
-function Footer() {
-  return (
-    <footer className="border-t border-[#E5E7EB] px-6 py-4 text-center">
-      <p className="text-xs text-[#6B7280]">ActivoBank · Fan Zone Mundial 2026</p>
-    </footer>
   )
 }

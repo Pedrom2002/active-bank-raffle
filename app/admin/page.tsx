@@ -1,27 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback, FormEvent } from 'react'
-
-type Raffle = {
-  id: string
-  label: string
-  status: 'active' | 'closed'
-  duration_sec: number
-  starts_at: string
-  ends_at: string | null
-  winner_id: string | null
-}
-
-type Participant = {
-  id: string
-  raffle_id: string
-  name: string
-  phone: string
-  email: string
-  registered_at: string
-}
-
-type Toast = { id: number; kind: 'success' | 'info' | 'error'; text: string }
+import React, { useState, useEffect, useCallback, FormEvent } from 'react'
+import type { Raffle, RaffleParticipant as Participant, Toast } from '@/lib/types'
 
 const MAX_PIN_ATTEMPTS = 5
 const PRESETS = ['Golo', 'Intervalo', 'Penalty', 'Cartão', 'Final', 'Especial']
@@ -34,14 +14,15 @@ function PinGate({ onUnlock }: { onUnlock: () => void }) {
   const [shake, setShake] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
-  const submitPin = useCallback(async (p: string) => {
-    if (submitting) return
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (submitting || locked || !pin) return
     setSubmitting(true)
     try {
       const res = await fetch('/api/admin/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pin: p }),
+        body: JSON.stringify({ pin }),
       })
       if (res.ok) {
         onUnlock()
@@ -56,30 +37,14 @@ function PinGate({ onUnlock }: { onUnlock: () => void }) {
         setError('Muitas tentativas. Contacta o administrador.')
       } else {
         setError(`PIN incorrecto. ${MAX_PIN_ATTEMPTS - a} tentativa${MAX_PIN_ATTEMPTS - a === 1 ? '' : 's'} restante${MAX_PIN_ATTEMPTS - a === 1 ? '' : 's'}.`)
-        setTimeout(() => setPin(''), 500)
+        setPin('')
       }
+    } catch {
+      setError('Erro de ligação. Tenta de novo.')
     } finally {
       setSubmitting(false)
     }
-  }, [submitting, attempts, onUnlock])
-
-  const handleDigit = useCallback((d: string) => {
-    if (locked || pin.length >= 4 || submitting) return
-    const next = pin + d
-    setPin(next)
-    if (next.length === 4) {
-      submitPin(next)
-    }
-  }, [locked, pin, submitting, submitPin])
-
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key >= '0' && e.key <= '9') handleDigit(e.key)
-      else if (e.key === 'Backspace') setPin(p => p.slice(0, -1))
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [handleDigit])
+  }
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
@@ -91,24 +56,27 @@ function PinGate({ onUnlock }: { onUnlock: () => void }) {
         <div className={`w-full max-w-xs ${shake ? 'animate-shake' : ''}`}>
           <div className="text-center mb-8">
             <h1 className="text-2xl font-semibold tracking-tight text-[#0A0A0A]">Acesso Admin</h1>
-            <p className="text-sm text-[#6B7280] mt-1.5">Introduz o PIN de 4 dígitos</p>
-          </div>
-          <div className="flex justify-center gap-3 mb-7">
-            {[0, 1, 2, 3].map(i => (
-              <div key={i} className={`w-3.5 h-3.5 rounded-full transition-all duration-200 ${pin.length > i ? 'bg-[#0096DC] scale-110' : 'bg-[#E5E7EB]'}`} />
-            ))}
+            <p className="text-sm text-[#6B7280] mt-1.5">Introduz o PIN de acesso</p>
           </div>
           {error && <p role="alert" className="text-red-600 text-sm mb-4 text-center font-medium">{error}</p>}
-          <div className="grid grid-cols-3 gap-2.5">
-            {['1','2','3','4','5','6','7','8','9','','0','⌫'].map((d, i) => (
-              <button key={i}
-                onClick={() => d === '⌫' ? setPin(p => p.slice(0,-1)) : d && handleDigit(d)}
-                disabled={locked || d === '' || submitting}
-                className="h-14 rounded-xl bg-[#F7F8FA] hover:bg-[#EDEFF2] active:bg-[#E5E7EB] active:scale-95 text-xl font-medium text-[#0A0A0A] disabled:opacity-0 transition-all">
-                {d}
-              </button>
-            ))}
-          </div>
+          <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+            <input
+              type="password"
+              autoFocus
+              autoComplete="current-password"
+              value={pin}
+              onChange={e => setPin(e.target.value)}
+              disabled={locked || submitting}
+              placeholder="PIN"
+              className="w-full bg-[#F7F8FA] border border-transparent rounded-xl px-4 py-3 text-center text-lg tracking-widest focus:outline-none focus:bg-white focus:border-[#0096DC] focus:ring-2 focus:ring-[#0096DC]/20 disabled:opacity-50 transition"
+            />
+            <button
+              type="submit"
+              disabled={locked || submitting || !pin}
+              className="bg-[#0096DC] hover:bg-[#0064B4] text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-40">
+              {submitting ? 'A verificar…' : 'Entrar'}
+            </button>
+          </form>
         </div>
       </main>
     </div>
@@ -132,15 +100,23 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   }, [])
 
   const fetchRaffles = useCallback(async () => {
-    const res = await fetch('/api/raffles')
-    if (res.ok) setRaffles(await res.json())
+    try {
+      const res = await fetch('/api/raffles')
+      if (res.ok) setRaffles(await res.json())
+    } catch {
+      // Silently retry on next poll
+    }
   }, [])
 
   const fetchParticipants = useCallback(async (raffleId: string) => {
-    const res = await fetch(`/api/raffles/${raffleId}/participants`)
-    if (res.ok) {
-      const data: Participant[] = await res.json()
-      setParticipants(p => ({ ...p, [raffleId]: data }))
+    try {
+      const res = await fetch(`/api/raffles/${raffleId}/participants`)
+      if (res.ok) {
+        const data: Participant[] = await res.json()
+        setParticipants(p => ({ ...p, [raffleId]: data }))
+      }
+    } catch {
+      // Silently retry on next poll
     }
   }, [])
 
@@ -163,48 +139,61 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     const finalLabel = label || customLabel.trim()
     if (!finalLabel) return
     const duration_sec = Math.round(parseFloat(durationMin) * 60)
-    const res = await fetch('/api/raffles', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ label: finalLabel, duration_sec }),
-    })
-    if (res.ok) {
-      pushToast('success', `Sorteio "${finalLabel}" ativado`)
-      setLabel('')
-      setCustomLabel('')
-      setShowCreate(false)
-      fetchRaffles()
-    } else {
-      const d = await res.json()
-      pushToast('error', d.error ?? 'Erro ao criar sorteio')
+    try {
+      const res = await fetch('/api/raffles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ label: finalLabel, duration_sec }),
+      })
+      if (res.ok) {
+        pushToast('success', `Sorteio "${finalLabel}" ativado`)
+        setLabel('')
+        setCustomLabel('')
+        setShowCreate(false)
+        fetchRaffles()
+      } else {
+        const d = await res.json()
+        pushToast('error', d.error ?? 'Erro ao criar sorteio')
+      }
+    } catch {
+      pushToast('error', 'Erro de ligação. Tenta de novo.')
     }
   }
 
   async function closeRaffle(id: string) {
-    const res = await fetch(`/api/raffles/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'close' }),
-    })
-    if (res.ok) { pushToast('info', 'Sorteio encerrado'); fetchRaffles() }
-    else pushToast('error', 'Erro ao encerrar')
+    try {
+      const res = await fetch(`/api/raffles/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'close' }),
+      })
+      if (res.ok) { pushToast('info', 'Sorteio encerrado'); fetchRaffles() }
+      else pushToast('error', 'Erro ao encerrar')
+    } catch {
+      pushToast('error', 'Erro de ligação. Tenta de novo.')
+    }
   }
 
   async function drawWinner(id: string, raffleLabel: string) {
     setDrawingId(id)
-    const res = await fetch(`/api/raffles/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'draw' }),
-    })
-    setDrawingId(null)
-    if (res.ok) {
-      const d = await res.json()
-      pushToast('success', `Vencedor de "${raffleLabel}": ${d.winner.name}`)
-      fetchRaffles()
-    } else {
-      const d = await res.json()
-      pushToast('error', d.error ?? 'Erro no sorteio')
+    try {
+      const res = await fetch(`/api/raffles/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'draw' }),
+      })
+      if (res.ok) {
+        const d = await res.json()
+        pushToast('success', `Vencedor de "${raffleLabel}": ${d.winner.name}`)
+        fetchRaffles()
+      } else {
+        const d = await res.json()
+        pushToast('error', d.error ?? 'Erro no sorteio')
+      }
+    } catch {
+      pushToast('error', 'Erro de ligação. Tenta de novo.')
+    } finally {
+      setDrawingId(null)
     }
   }
 

@@ -1,69 +1,53 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
-
-type Raffle = {
-  id: string
-  label: string
-  status: 'active' | 'closed'
-  duration_sec: number
-  starts_at: string
-  ends_at: string | null
-  winner_id: string | null
-}
-
-type RaffleQR = {
-  raffle_id: string
-  label: string
-  ends_at: number
-  qr_data_url: string
-}
-
-type Winner = {
-  raffle_id: string
-  label: string
-  name: string
-  phone: string
-}
+import { useEffect, useState, useCallback, useRef } from 'react'
+import type { Raffle, RaffleQR, Winner } from '@/lib/types'
 
 export default function ScreenPage() {
   const [activeRaffles, setActiveRaffles] = useState<Raffle[]>([])
   const [qrMap, setQrMap] = useState<Record<string, RaffleQR>>({})
   const [winner, setWinner] = useState<Winner | null>(null)
-  const [now, setNow] = useState(() => Date.now())
-
-  useEffect(() => {
-    const iv = setInterval(() => setNow(Date.now()), 1000)
-    return () => clearInterval(iv)
-  }, [])
+  // Track which raffle IDs have already triggered the winner overlay
+  const shownWinners = useRef<Set<string>>(new Set())
 
   const fetchRaffles = useCallback(async () => {
-    const res = await fetch('/api/raffles')
-    if (!res.ok) return
-    const all: Raffle[] = await res.json()
-    const active = all.filter(r => r.status === 'active')
-    setActiveRaffles(active)
+    try {
+      const res = await fetch('/api/raffles')
+      if (!res.ok) return
+      const all: Raffle[] = await res.json()
+      setActiveRaffles(all.filter(r => r.status === 'active'))
 
-    const justClosed = all.find(r => r.status === 'closed' && r.winner_id && !winner)
-    if (justClosed) {
-      const detailRes = await fetch(`/api/raffles/${justClosed.id}`)
-      if (detailRes.ok) {
-        const detail = await detailRes.json()
-        if (detail.raffle_participants) {
-          setWinner({ raffle_id: justClosed.id, label: justClosed.label, ...detail.raffle_participants })
-          setTimeout(() => setWinner(null), 12_000)
+      // Only show winner overlay for raffles not yet displayed
+      const unseen = all.find(
+        r => r.status === 'closed' && r.winner_id && !shownWinners.current.has(r.id)
+      )
+      if (unseen) {
+        shownWinners.current.add(unseen.id)
+        const detailRes = await fetch(`/api/raffles/${unseen.id}`)
+        if (detailRes.ok) {
+          const detail = await detailRes.json()
+          if (detail.raffle_participants) {
+            setWinner({ raffle_id: unseen.id, label: unseen.label, ...detail.raffle_participants })
+            setTimeout(() => setWinner(null), 12_000)
+          }
         }
       }
+    } catch {
+      // Silently retry on next poll — screen must never crash
     }
-  }, [winner])
+  }, [])
 
   const fetchQRs = useCallback(async (raffles: Raffle[]) => {
     const entries = await Promise.all(
       raffles.map(async r => {
-        const res = await fetch(`/api/raffles/${r.id}/qr`)
-        if (!res.ok) return null
-        const data: RaffleQR = await res.json()
-        return [r.id, data] as const
+        try {
+          const res = await fetch(`/api/raffles/${r.id}/qr`)
+          if (!res.ok) return null
+          const data: RaffleQR = await res.json()
+          return [r.id, data] as const
+        } catch {
+          return null
+        }
       })
     )
     const map: Record<string, RaffleQR> = {}
@@ -126,28 +110,44 @@ export default function ScreenPage() {
         {activeRaffles.map(raffle => {
           const qr = qrMap[raffle.id]
           const endsAt = qr?.ends_at ?? (new Date(raffle.starts_at).getTime() + raffle.duration_sec * 1000)
-          const remaining = Math.max(0, Math.ceil((endsAt - now) / 1000))
           return (
-            <div key={raffle.id} className="bg-white border border-[#E5E7EB] rounded-2xl p-6 shadow-sm flex flex-col items-center text-center">
-              <div className="flex items-center gap-2 mb-4">
-                <span className="w-2 h-2 rounded-full bg-[#0096DC] animate-pulse" />
-                <span className="text-xs font-medium text-[#0096DC] uppercase tracking-widest">Sorteio ativo</span>
-              </div>
-              <h2 className="text-3xl font-semibold tracking-tight text-[#0A0A0A] mb-5">{raffle.label}</h2>
-              <div className="bg-[#F7F8FA] rounded-xl p-4 mb-4">
-                {qr?.qr_data_url
-                  // eslint-disable-next-line @next/next/no-img-element
-                  ? <img src={qr.qr_data_url} alt="QR Code" className="w-56 h-56 sm:w-72 sm:h-72" />
-                  : <div className="w-56 h-56 sm:w-72 sm:h-72 bg-[#E5E7EB] rounded-lg animate-pulse" />
-                }
-              </div>
-              <p className="text-5xl font-semibold tabular-nums text-[#0096DC]">{remaining}s</p>
-              <p className="text-xs text-[#6B7280] mt-1 uppercase tracking-wider">Tempo restante</p>
-            </div>
+            <RaffleCard key={raffle.id} raffle={raffle} qr={qr} endsAt={endsAt} />
           )
         })}
       </main>
       <ScreenFooter />
+    </div>
+  )
+}
+
+// Isolated card component — each instance has its own countdown ticker,
+// so a single setInterval drives only one card, not the entire page.
+function RaffleCard({ raffle, qr, endsAt }: { raffle: Raffle; qr: RaffleQR | undefined; endsAt: number }) {
+  const [remaining, setRemaining] = useState(() => Math.max(0, Math.ceil((endsAt - Date.now()) / 1000)))
+
+  useEffect(() => {
+    const iv = setInterval(() => {
+      setRemaining(Math.max(0, Math.ceil((endsAt - Date.now()) / 1000)))
+    }, 1000)
+    return () => clearInterval(iv)
+  }, [endsAt])
+
+  return (
+    <div className="bg-white border border-[#E5E7EB] rounded-2xl p-6 shadow-sm flex flex-col items-center text-center">
+      <div className="flex items-center gap-2 mb-4">
+        <span className="w-2 h-2 rounded-full bg-[#0096DC] animate-pulse" />
+        <span className="text-xs font-medium text-[#0096DC] uppercase tracking-widest">Sorteio ativo</span>
+      </div>
+      <h2 className="text-3xl font-semibold tracking-tight text-[#0A0A0A] mb-5">{raffle.label}</h2>
+      <div className="bg-[#F7F8FA] rounded-xl p-4 mb-4">
+        {qr?.qr_data_url
+          // eslint-disable-next-line @next/next/no-img-element
+          ? <img src={qr.qr_data_url} alt="QR Code" className="w-56 h-56 sm:w-72 sm:h-72" />
+          : <div className="w-56 h-56 sm:w-72 sm:h-72 bg-[#E5E7EB] rounded-lg animate-pulse" />
+        }
+      </div>
+      <p className="text-5xl font-semibold tabular-nums text-[#0096DC]">{remaining}s</p>
+      <p className="text-xs text-[#6B7280] mt-1 uppercase tracking-wider">Tempo restante</p>
     </div>
   )
 }

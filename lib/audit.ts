@@ -1,3 +1,4 @@
+import { after } from 'next/server'
 import { supabaseAdmin } from './supabase'
 
 type AuditEvent =
@@ -14,13 +15,13 @@ type AuditEvent =
 
 export function audit(data: AuditEvent): void {
   const entry = { ts: new Date().toISOString(), ...data }
-  // Always log to console as immediate backup
   console.log(JSON.stringify(entry))
-  // Persist to DB asynchronously — fire-and-forget, never blocks the request
-  supabaseAdmin
-    .from('audit_log')
-    .insert({ event: data.event, payload: entry })
-    .then(({ error }) => {
-      if (error) console.error('[audit] persist failed:', error.message)
-    })
+  // after() keeps the Vercel function alive until the DB insert completes,
+  // preventing the runtime from being killed before the promise resolves.
+  after(async () => {
+    const { error } = await supabaseAdmin
+      .from('audit_log')
+      .insert({ event: data.event, payload: entry })
+    if (error) console.error('[audit] persist failed:', error.message)
+  })
 }

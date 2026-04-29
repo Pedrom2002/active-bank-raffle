@@ -25,30 +25,4 @@ export const supabaseAdmin = new Proxy({} as SupabaseClient, {
   },
 })
 
-export type Raffle = {
-  id: string
-  label: string
-  status: 'active' | 'closed'
-  duration_sec: number
-  starts_at: string
-  ends_at: string | null
-  winner_id: string | null
-  created_at: string
-}
-
-export type RaffleParticipant = {
-  id: string
-  raffle_id: string
-  name: string
-  phone: string
-  email: string
-  registered_at: string
-}
-
-export type LoungeEntrant = {
-  id: string
-  name: string
-  phone: string
-  email: string
-  entered_at: string
-}
+export type { Raffle, RaffleParticipant, LoungeEntrant } from './types'

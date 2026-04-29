@@ -37,13 +37,21 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const endsAt = new Date(raffle.starts_at).getTime() + raffle.duration_sec * 1000
 
-  // register_url is intentionally omitted from the response — the token must not
-  // appear in response bodies (logs, monitoring tools). The QR image encodes it.
-  return Response.json({
+  // register_url is intentionally omitted — the token must not appear in response
+  // bodies (logs, monitoring tools). The QR image encodes it.
+  // Cache for 30s: the token is deterministic within a 120s window, so the
+  // same QR is valid for the entire window. 30s leaves headroom before rotation.
+  return new Response(JSON.stringify({
     raffle_id: raffle.id,
     label: raffle.label,
     expires_at: expiresAt,
     ends_at: endsAt,
     qr_data_url: qrDataUrl,
+  }), {
+    status: 200,
+    headers: {
+      'Content-Type': 'application/json',
+      'Cache-Control': 'public, max-age=30, s-maxage=30',
+    },
   })
 }

@@ -30,6 +30,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     .select(selectFields)
     .eq('raffle_id', id)
     .order('registered_at', { ascending: false })
+    .limit(20)
   if (error) {
     console.error('[participants] GET error:', error.message)
     return Response.json({ error: 'Internal server error.' }, { status: 500 })

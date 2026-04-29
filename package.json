@@ -2,11 +2,15 @@
   "name": "active-bank-raffle",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
     "dev": "next dev",
-    "build": "npm run audit:check && next build",
+    "build": "next build",
     "start": "next start",
-    "audit:check": "npm audit --audit-level=high"
+    "lint": "next lint",
+    "ci:audit": "npm audit --audit-level=high"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.104.1",
