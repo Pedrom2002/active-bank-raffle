@@ -11,7 +11,6 @@ type QRData = {
 
 type Winner = {
   name: string
-  phone: string
 }
 
 export default function ScreenPage() {
@@ -20,7 +19,7 @@ export default function ScreenPage() {
   const [count, setCount] = useState(0)
   const [winner, setWinner] = useState<Winner | null>(null)
   const [noSession, setNoSession] = useState(false)
-  const [latestDraw, setLatestDraw] = useState<{ label: string; winner: { name: string; phone: string } } | null>(null)
+  const [latestDraw, setLatestDraw] = useState<{ label: string; winner: { name: string } } | null>(null)
   const [drawVisible, setDrawVisible] = useState(false)
   const lastDrawId = useRef<string | null>(null)
 
@@ -107,7 +106,6 @@ export default function ScreenPage() {
           <h1 className="text-7xl sm:text-8xl font-semibold tracking-tight text-[#0A0A0A] mb-4">
             {winner.name}
           </h1>
-          <p className="text-2xl text-[#6B7280] tabular-nums">{winner.phone}</p>
           <div className="mt-12 h-1 w-24 bg-[#0096DC] rounded-full" />
         </main>
         <ScreenFooter />
@@ -129,7 +127,6 @@ export default function ScreenPage() {
           <h1 className="text-7xl sm:text-8xl font-semibold tracking-tight mb-4">
             {latestDraw.winner.name}
           </h1>
-          <p className="text-2xl opacity-80 tabular-nums">{latestDraw.winner.phone}</p>
         </main>
         <footer className="px-8 py-4 text-center text-white/60 text-xs">
           Fan Zone · Mundial 2026

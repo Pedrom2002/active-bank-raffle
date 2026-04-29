@@ -1,23 +1,37 @@
 'use client'
 
-import { useSearchParams } from 'next/navigation'
-import { useState, FormEvent, Suspense } from 'react'
+import { useState, FormEvent, useEffect } from 'react'
 
 type State = 'idle' | 'loading' | 'success' | 'error'
 
+export default function RegisterPage() {
+  return <RegisterForm />
+}
+
 function RegisterForm() {
-  const params = useSearchParams()
-  const token = params.get('token') ?? ''
-  const sessionId = params.get('session_id') ?? ''
+  const [token, setToken] = useState('')
+  const [sessionId, setSessionId] = useState('')
 
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
+  const [consent, setConsent] = useState(false)
   const [state, setState] = useState<State>('idle')
   const [message, setMessage] = useState('')
   const [sessionName, setSessionName] = useState('')
 
+  // Token and session ID come from the URL fragment (#t=TOKEN&s=SESSION_ID).
+  // The fragment is never sent to the server in HTTP requests, keeping the
+  // token out of access logs and Referer headers.
+  useEffect(() => {
+    const hash = window.location.hash.slice(1)
+    const params = new URLSearchParams(hash)
+    setToken(params.get('t') ?? '')
+    setSessionId(params.get('s') ?? '')
+  }, [])
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
+    if (!consent) return
     setState('loading')
 
     const res = await fetch('/api/participants', {
@@ -86,6 +100,7 @@ function RegisterForm() {
                 id="name"
                 type="text"
                 required
+                maxLength={100}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="O teu nome"
@@ -101,6 +116,7 @@ function RegisterForm() {
                 id="phone"
                 type="tel"
                 required
+                maxLength={20}
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="+351 9XX XXX XXX"
@@ -108,30 +124,35 @@ function RegisterForm() {
               />
             </div>
 
+            {/* GDPR explicit consent (required) */}
+            <div className="flex items-start gap-3 bg-[#F7F8FA] rounded-lg p-4">
+              <input
+                id="consent"
+                type="checkbox"
+                required
+                checked={consent}
+                onChange={(e) => setConsent(e.target.checked)}
+                className="mt-0.5 h-4 w-4 shrink-0 rounded border-[#E5E7EB] accent-[#0096DC] cursor-pointer"
+              />
+              <label htmlFor="consent" className="text-xs text-[#6B7280] leading-relaxed cursor-pointer">
+                Autorizo o ActivoBank a tratar os meus dados pessoais (nome e telemóvel)
+                para contacto em caso de prémio, nos termos do RGPD. Os dados são
+                eliminados no prazo de 90 dias após o evento.
+              </label>
+            </div>
+
             <button
               type="submit"
-              disabled={state === 'loading'}
+              disabled={state === 'loading' || !consent}
               className="mt-2 bg-[#0096DC] hover:bg-[#0064B4] text-white font-semibold text-base py-3.5 rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {state === 'loading' ? 'A inscrever…' : 'Entrar no sorteio'}
             </button>
           </form>
-
-          <p className="text-xs text-[#6B7280] mt-6 leading-relaxed">
-            Os dados serão usados apenas para contacto em caso de prémio. Tratamento conforme RGPD.
-          </p>
         </div>
       </main>
       <Footer />
     </div>
-  )
-}
-
-export default function RegisterPage() {
-  return (
-    <Suspense>
-      <RegisterForm />
-    </Suspense>
   )
 }
 

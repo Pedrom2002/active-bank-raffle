@@ -58,7 +58,6 @@ const DRAW_PRESETS: DrawPreset[] = [
 ]
 
 const MILESTONES = [10, 25, 50, 100, 250, 500, 1000]
-const CORRECT_PIN = process.env.NEXT_PUBLIC_ADMIN_PIN ?? '1234'
 const MAX_PIN_ATTEMPTS = 5
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -77,21 +76,31 @@ function PinGate({ onUnlock }: { onUnlock: () => void }) {
     const next = pin + d
     setPin(next)
     if (next.length === 4) {
-      if (next === CORRECT_PIN) {
-        onUnlock()
-      } else {
-        const newAttempts = attempts + 1
-        setAttempts(newAttempts)
-        setShake(true)
-        setTimeout(() => setShake(false), 400)
-        if (newAttempts >= MAX_PIN_ATTEMPTS) {
-          setLocked(true)
-          setError('Muitas tentativas. Contacta o administrador.')
+      fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pin: next }),
+      }).then(async (res) => {
+        if (res.ok) {
+          onUnlock()
         } else {
-          setError(`PIN incorrecto. ${MAX_PIN_ATTEMPTS - newAttempts} tentativa${MAX_PIN_ATTEMPTS - newAttempts === 1 ? '' : 's'} restante${MAX_PIN_ATTEMPTS - newAttempts === 1 ? '' : 's'}.`)
-          setTimeout(() => setPin(''), 500)
+          const newAttempts = attempts + 1
+          setAttempts(newAttempts)
+          setShake(true)
+          setTimeout(() => setShake(false), 400)
+          if (newAttempts >= MAX_PIN_ATTEMPTS) {
+            setLocked(true)
+            setError('Muitas tentativas. Contacta o administrador.')
+          } else {
+            const remaining = MAX_PIN_ATTEMPTS - newAttempts
+            setError(`PIN incorrecto. ${remaining} tentativa${remaining === 1 ? '' : 's'} restante${remaining === 1 ? '' : 's'}.`)
+            setTimeout(() => setPin(''), 500)
+          }
         }
-      }
+      }).catch(() => {
+        setError('Erro de ligação. Tenta de novo.')
+        setTimeout(() => setPin(''), 500)
+      })
     }
   }, [locked, pin, attempts, onUnlock])
 
@@ -1106,7 +1115,29 @@ function UserPlusIconSm() { return <svg className="w-3.5 h-3.5" fill="none" stro
 
 export default function AdminPage() {
   const [unlocked, setUnlocked] = useState(false)
+  const [checking, setChecking] = useState(true)
+
+  useEffect(() => {
+    fetch('/api/admin/me').then(r => {
+      if (r.ok) setUnlocked(true)
+      setChecking(false)
+    }).catch(() => setChecking(false))
+  }, [])
+
+  async function handleLogout() {
+    await fetch('/api/admin/logout', { method: 'POST' })
+    setUnlocked(false)
+  }
+
+  if (checking) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="w-6 h-6 border-2 border-[#0096DC] border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
+
   return unlocked
-    ? <Dashboard onLogout={() => setUnlocked(false)} />
+    ? <Dashboard onLogout={handleLogout} />
     : <PinGate onUnlock={() => setUnlocked(true)} />
 }

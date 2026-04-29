@@ -1,14 +1,13 @@
 import { createClient } from '@supabase/supabase-js'
+import { getEnv } from './env'
 
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+const env = getEnv()
 
 // Client-side (anon key, respects RLS)
-export const supabase = createClient(url, anonKey)
+export const supabase = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
 
 // Server-side (service role, bypasses RLS — only use in API routes)
-export const supabaseAdmin = createClient(url, serviceKey, {
+export const supabaseAdmin = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
 })
 
@@ -37,6 +36,6 @@ export type Draw = {
   drawn_at: string
   participants?: {
     name: string
-    phone: string
+    phone?: string
   }
 }
