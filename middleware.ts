@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 export function middleware(request: NextRequest) {
-  const nonce = Buffer.from(crypto.getRandomValues(new Uint8Array(16))).toString('base64')
+  const nonce = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(16))))
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
 
