@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback, useRef } from 'react'
+import Image from 'next/image'
 import type { Raffle, RaffleQR, Winner } from '@/lib/types'
 
 export default function ScreenPage() {
@@ -71,8 +72,7 @@ export default function ScreenPage() {
     return (
       <div className="min-h-screen bg-[#0096DC] flex flex-col text-white">
         <header className="px-8 py-5">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo_activobank.svg" alt="ActivoBank" width={137} height={22} className="brightness-0 invert" />
+          <Image src="/logo_activobank.svg" alt="ActivoBank" width={137} height={22} className="brightness-0 invert" />
         </header>
         <main className="flex-1 flex flex-col items-center justify-center text-center px-8">
           <p className="text-sm font-medium tracking-[0.3em] uppercase opacity-80 mb-4">{winner.label}</p>
@@ -89,7 +89,7 @@ export default function ScreenPage() {
     return (
       <div className="min-h-screen bg-white flex flex-col">
         <ScreenHeader />
-        <main className="flex-1 flex flex-col items-center justify-center px-8 text-center">
+        <main id="main-content" className="flex-1 flex flex-col items-center justify-center px-8 text-center">
           <div className="w-3 h-3 rounded-full bg-[#0096DC] mb-8 animate-pulse" />
           <h1 className="text-4xl font-semibold tracking-tight text-[#0A0A0A] mb-3">
             Os sorteios aparecem aqui
@@ -106,7 +106,7 @@ export default function ScreenPage() {
   return (
     <div className="min-h-screen bg-white flex flex-col">
       <ScreenHeader />
-      <main className="flex-1 p-6 grid grid-cols-1 lg:grid-cols-2 gap-6 content-start max-w-7xl mx-auto w-full">
+      <main id="main-content" className="flex-1 p-6 grid grid-cols-1 lg:grid-cols-2 gap-6 content-start max-w-7xl mx-auto w-full">
         {activeRaffles.map(raffle => {
           const qr = qrMap[raffle.id]
           const endsAt = qr?.ends_at ?? (new Date(raffle.starts_at).getTime() + raffle.duration_sec * 1000)
@@ -141,8 +141,7 @@ function RaffleCard({ raffle, qr, endsAt }: { raffle: Raffle; qr: RaffleQR | und
       <h2 className="text-3xl font-semibold tracking-tight text-[#0A0A0A] mb-5">{raffle.label}</h2>
       <div className="bg-[#F7F8FA] rounded-xl p-4 mb-4">
         {qr?.qr_data_url
-          // eslint-disable-next-line @next/next/no-img-element
-          ? <img src={qr.qr_data_url} alt="QR Code" className="w-56 h-56 sm:w-72 sm:h-72" />
+          ? <Image src={qr.qr_data_url} alt="QR Code para participar no sorteio" width={288} height={288} unoptimized className="w-56 h-56 sm:w-72 sm:h-72" />
           : <div className="w-56 h-56 sm:w-72 sm:h-72 bg-[#E5E7EB] rounded-lg animate-pulse" />
         }
       </div>
@@ -155,8 +154,7 @@ function RaffleCard({ raffle, qr, endsAt }: { raffle: Raffle; qr: RaffleQR | und
 function ScreenHeader() {
   return (
     <header className="border-b border-[#E5E7EB] px-8 py-5 flex items-center justify-between">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/logo_activobank.svg" alt="ActivoBank" width={137} height={22} />
+      <Image src="/logo_activobank.svg" alt="ActivoBank" width={137} height={22} />
       <span className="text-xs text-[#6B7280] uppercase tracking-[0.2em]">Fan Zone · Mundial 2026</span>
     </header>
   )

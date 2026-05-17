@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useCallback, FormEvent } from 'react'
+import Image from 'next/image'
 import type { Raffle, RaffleParticipant as Participant, Toast } from '@/lib/types'
 
 const MAX_PIN_ATTEMPTS = 5
@@ -49,10 +50,9 @@ function PinGate({ onUnlock }: { onUnlock: () => void }) {
   return (
     <div className="min-h-screen bg-white flex flex-col">
       <header className="border-b border-[#E5E7EB] px-6 py-4">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo_activobank.svg" alt="ActivoBank" width={137} height={22} />
+        <Image src="/logo_activobank.svg" alt="ActivoBank" width={137} height={22} />
       </header>
-      <main className="flex-1 flex flex-col items-center justify-center p-6">
+      <main id="main-content" className="flex-1 flex flex-col items-center justify-center p-6">
         <div className={`w-full max-w-xs ${shake ? 'animate-shake' : ''}`}>
           <div className="text-center mb-8">
             <h1 className="text-2xl font-semibold tracking-tight text-[#0A0A0A]">Acesso Admin</h1>
@@ -60,7 +60,9 @@ function PinGate({ onUnlock }: { onUnlock: () => void }) {
           </div>
           {error && <p role="alert" className="text-red-600 text-sm mb-4 text-center font-medium">{error}</p>}
           <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+            <label htmlFor="pin-input" className="sr-only">PIN de acesso</label>
             <input
+              id="pin-input"
               type="password"
               autoFocus
               autoComplete="current-password"
@@ -204,14 +206,13 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     <div className="min-h-screen bg-[#F7F8FA]">
       <header className="bg-white border-b border-[#E5E7EB] sticky top-0 z-20">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo_activobank.svg" alt="ActivoBank" width={137} height={22} />
+          <Image src="/logo_activobank.svg" alt="ActivoBank" width={137} height={22} />
           <div className="flex items-center gap-3">
             <a href="/screen" target="_blank" rel="noreferrer"
               className="text-xs font-medium text-[#0096DC] hover:text-[#0064B4] px-3 py-1.5 rounded-lg hover:bg-[#0096DC]/5 transition-colors">
               Ecrã TV
             </a>
-            <button onClick={onLogout}
+            <button onClick={onLogout} aria-label="Terminar sessão de administrador"
               className="text-xs text-[#6B7280] hover:text-[#0A0A0A] px-3 py-1.5 rounded-lg hover:bg-[#F7F8FA] transition-colors">
               Sair
             </button>
@@ -219,7 +220,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+      <main id="main-content" className="max-w-5xl mx-auto px-4 sm:px-6 py-6 space-y-6">
         <section className="bg-white border border-[#E5E7EB] rounded-2xl p-5 sm:p-6">
           <h2 className="text-base font-semibold text-[#0A0A0A] mb-4">Ativar sorteio</h2>
           {!showCreate ? (
