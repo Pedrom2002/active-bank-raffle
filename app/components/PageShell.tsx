@@ -1,8 +1,9 @@
+import Image from 'next/image'
+
 export function PageHeader() {
   return (
     <header className="border-b border-[#E5E7EB] px-6 py-4">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/logo_activobank.svg" alt="ActivoBank" width={137} height={22} />
+      <Image src="/logo_activobank.svg" alt="ActivoBank" width={137} height={22} />
     </header>
   )
 }
