@@ -100,6 +100,19 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
   async function drawWinner(id: string, raffleLabel: string) {
     setDrawingId(id)
     try {
+      // Close the raffle first if it is still active
+      if (raffles.find(r => r.id === id)?.status === 'active') {
+        const closeRes = await fetch(`/api/raffles/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'close' }),
+        })
+        if (!closeRes.ok) {
+          pushToast('error', 'Erro ao encerrar sorteio')
+          return
+        }
+      }
+
       const res = await fetch(`/api/raffles/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
