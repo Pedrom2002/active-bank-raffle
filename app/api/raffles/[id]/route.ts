@@ -17,7 +17,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const { data, error } = await supabaseAdmin
     .from('raffles')
-    .select('id, label, status, duration_sec, starts_at, ends_at, winner_id, created_at, raffle_participants!raffles_winner_id_fkey(name)')
+    .select('id, label, status, duration_sec, starts_at, ends_at, winner_id, created_at, raffle_participants!fk_raffle_winner(name, phone)')
     .eq('id', id)
     .single()
   if (error) {
@@ -26,9 +26,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 
   if (!isAdmin && data.raffle_participants) {
-    // Strip PII from winner for non-admin
-    const winner = data.raffle_participants as unknown as { name: string }
-    return Response.json({ ...data, raffle_participants: winner ? { name: winner.name } : null })
+    // Screen (non-admin) needs name + phone to announce the winner on TV.
+    const winner = data.raffle_participants as unknown as { name: string; phone: string }
+    return Response.json({ ...data, raffle_participants: winner ? { name: winner.name, phone: winner.phone } : null })
   }
 
   return Response.json(data)
