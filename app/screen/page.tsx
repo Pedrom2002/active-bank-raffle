@@ -38,11 +38,19 @@ export default function ScreenPage() {
     }
   }, [])
 
+  // Ref keeps active raffles accessible in intervals without stale closure issues.
+  const activeRafflesRef = useRef<Raffle[]>([])
+  // Tracks which raffle IDs already have a QR loaded so we don't re-fetch on
+  // every 3 s raffle-status poll (only fetch for genuinely new raffles).
+  const loadedQRIds = useRef<Set<string>>(new Set())
+
   const fetchQRs = useCallback(async (raffles: Raffle[]) => {
     const entries = await Promise.all(
       raffles.map(async r => {
         try {
-          const res = await fetch(`/api/raffles/${r.id}/qr`)
+          // no-store ensures we always get a fresh token from the server,
+          // bypassing browser and CDN caches that could serve an expired token.
+          const res = await fetch(`/api/raffles/${r.id}/qr`, { cache: 'no-store' })
           if (!res.ok) return null
           const data: RaffleQR = await res.json()
           return [r.id, data] as const
@@ -51,11 +59,13 @@ export default function ScreenPage() {
         }
       })
     )
-    const map: Record<string, RaffleQR> = {}
-    for (const entry of entries) {
-      if (entry) map[entry[0]] = entry[1]
-    }
-    setQrMap(map)
+    setQrMap(prev => {
+      const next = { ...prev }
+      for (const entry of entries) {
+        if (entry) next[entry[0]] = entry[1]
+      }
+      return next
+    })
   }, [])
 
   useEffect(() => {
@@ -65,8 +75,29 @@ export default function ScreenPage() {
   }, [fetchRaffles])
 
   useEffect(() => {
-    if (activeRaffles.length > 0) fetchQRs(activeRaffles)
+    activeRafflesRef.current = activeRaffles
+
+    // Only fetch QRs for raffles that don't have one yet.
+    const newRaffles = activeRaffles.filter(r => !loadedQRIds.current.has(r.id))
+    if (newRaffles.length > 0) {
+      newRaffles.forEach(r => loadedQRIds.current.add(r.id))
+      fetchQRs(newRaffles)
+    }
+
+    // Remove closed raffles from the loaded-ids set.
+    const activeIds = new Set(activeRaffles.map(r => r.id))
+    loadedQRIds.current = new Set([...loadedQRIds.current].filter(id => activeIds.has(id)))
   }, [activeRaffles, fetchQRs])
+
+  // Refresh ALL QR codes every 90 s so the displayed token is always from the
+  // current 120 s window, well before the 30 s grace period can expire.
+  useEffect(() => {
+    const iv = setInterval(() => {
+      const raffles = activeRafflesRef.current
+      if (raffles.length > 0) fetchQRs(raffles)
+    }, 90_000)
+    return () => clearInterval(iv)
+  }, [fetchQRs])
 
   if (winner) {
     return (

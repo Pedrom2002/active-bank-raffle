@@ -53,11 +53,15 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
   const fetchParticipants = useCallback(async (activeIds: string[]) => {
     if (activeIds.length === 0) return
     try {
-      const res = await fetch(`/api/raffles/participants?ids=${activeIds.join(',')}`)
-      if (res.ok) {
-        const batch: Record<string, Participant[]> = await res.json()
-        setParticipants(prev => ({ ...prev, ...batch }))
-      }
+      const results = await Promise.all(
+        activeIds.map(async id => {
+          const res = await fetch(`/api/raffles/${id}/participants`)
+          if (!res.ok) return [id, []] as const
+          const data: Participant[] = await res.json()
+          return [id, data] as const
+        })
+      )
+      setParticipants(prev => ({ ...prev, ...Object.fromEntries(results) }))
     } catch { /* retry on next poll */ }
   }, [])
 

@@ -2,7 +2,6 @@ import { NextRequest } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { currentToken } from '@/lib/tokens'
 import { checkRateLimit } from '@/lib/rate-limit'
-import { getEnv } from '@/lib/env'
 import { getClientIp } from '@/lib/request-ip'
 import QRCode from 'qrcode'
 
@@ -26,7 +25,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   if (raffle.status !== 'active') return Response.json({ error: 'Raffle is not active' }, { status: 410 })
 
   const { token, expiresAt } = currentToken(raffle.id)
-  const registerUrl = `${getEnv().NEXT_PUBLIC_APP_URL}/register#t=${token}&s=${raffle.id}`
+  // Derive origin from the request itself so the QR always links to the same
+  // server that generated the token — avoids QR_SECRET mismatch when
+  // NEXT_PUBLIC_APP_URL points to a different deployment.
+  const origin = new URL(req.url).origin
+  const registerUrl = `${origin}/register#t=${token}&s=${raffle.id}`
 
   const qrDataUrl = await QRCode.toDataURL(registerUrl, {
     width: 600,
@@ -39,8 +42,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   // register_url is intentionally omitted — the token must not appear in response
   // bodies (logs, monitoring tools). The QR image encodes it.
-  // Cache for 30s: the token is deterministic within a 120s window, so the
-  // same QR is valid for the entire window. 30s leaves headroom before rotation.
   return new Response(JSON.stringify({
     raffle_id: raffle.id,
     label: raffle.label,
@@ -51,7 +52,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     status: 200,
     headers: {
       'Content-Type': 'application/json',
-      'Cache-Control': 'public, max-age=30, s-maxage=30',
+      'Cache-Control': 'no-store',
     },
   })
 }
