@@ -8,10 +8,9 @@ export default function ScreenPage() {
   const [activeRaffles, setActiveRaffles] = useState<Raffle[]>([])
   const [qrMap, setQrMap] = useState<Record<string, RaffleQR>>({})
   const [winner, setWinner] = useState<Winner | null>(null)
-  // Raffle IDs whose winner overlay has already been triggered this session.
-  const shownWinners = useRef<Set<string>>(new Set())
-  // On the very first poll we seed shownWinners with all already-closed
-  // raffles so stale winners from before the screen loaded are never shown.
+  // Tracks winner_id per raffle from the previous poll so we can detect the
+  // null → non-null transition without triggering on pre-existing winners.
+  const prevWinnerIds = useRef<Map<string, string | null>>(new Map())
   const isFirstPoll = useRef(true)
 
   const fetchRaffles = useCallback(async () => {
@@ -23,22 +22,24 @@ export default function ScreenPage() {
 
       if (isFirstPoll.current) {
         isFirstPoll.current = false
-        all.filter(r => r.status === 'closed').forEach(r => shownWinners.current.add(r.id))
+        // Snapshot current winner_ids — only future transitions trigger the overlay.
+        all.forEach(r => prevWinnerIds.current.set(r.id, r.winner_id ?? null))
         return
       }
 
-      // Show overlay only for a newly-closed raffle with a winner that we
-      // have not displayed yet this session.
-      const unseen = all.find(
-        r => r.status === 'closed' && r.winner_id && !shownWinners.current.has(r.id)
-      )
-      if (unseen) {
-        shownWinners.current.add(unseen.id)
-        const detailRes = await fetch(`/api/raffles/${unseen.id}`)
+      // Show overlay when a raffle's winner_id transitions from null → non-null.
+      const newlyWon = all.find(r => {
+        const prev = prevWinnerIds.current.get(r.id)
+        return r.winner_id && (prev === null || prev === undefined)
+      })
+      all.forEach(r => prevWinnerIds.current.set(r.id, r.winner_id ?? null))
+
+      if (newlyWon) {
+        const detailRes = await fetch(`/api/raffles/${newlyWon.id}`)
         if (detailRes.ok) {
           const detail = await detailRes.json()
           if (detail.raffle_participants) {
-            setWinner({ raffle_id: unseen.id, label: unseen.label, ...detail.raffle_participants })
+            setWinner({ raffle_id: newlyWon.id, label: newlyWon.label, ...detail.raffle_participants })
             setTimeout(() => setWinner(null), 12_000)
           }
         }
