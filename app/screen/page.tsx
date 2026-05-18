@@ -8,8 +8,11 @@ export default function ScreenPage() {
   const [activeRaffles, setActiveRaffles] = useState<Raffle[]>([])
   const [qrMap, setQrMap] = useState<Record<string, RaffleQR>>({})
   const [winner, setWinner] = useState<Winner | null>(null)
-  // Track which raffle IDs have already triggered the winner overlay
+  // Raffle IDs whose winner overlay has already been triggered this session.
   const shownWinners = useRef<Set<string>>(new Set())
+  // On the very first poll we seed shownWinners with all already-closed
+  // raffles so stale winners from before the screen loaded are never shown.
+  const isFirstPoll = useRef(true)
 
   const fetchRaffles = useCallback(async () => {
     try {
@@ -18,7 +21,14 @@ export default function ScreenPage() {
       const all: Raffle[] = await res.json()
       setActiveRaffles(all.filter(r => r.status === 'active'))
 
-      // Only show winner overlay for raffles not yet displayed
+      if (isFirstPoll.current) {
+        isFirstPoll.current = false
+        all.filter(r => r.status === 'closed').forEach(r => shownWinners.current.add(r.id))
+        return
+      }
+
+      // Show overlay only for a newly-closed raffle with a winner that we
+      // have not displayed yet this session.
       const unseen = all.find(
         r => r.status === 'closed' && r.winner_id && !shownWinners.current.has(r.id)
       )

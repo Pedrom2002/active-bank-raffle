@@ -2,7 +2,6 @@ import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { supabaseAdmin } from '@/lib/supabase'
 import { requireAdmin } from '@/lib/require-admin'
-import { isAdminAuthenticated } from '@/lib/admin-auth'
 import { audit } from '@/lib/audit'
 import { getClientIp } from '@/lib/request-ip'
 
@@ -11,9 +10,7 @@ const createRaffleSchema = z.object({
   duration_sec: z.number().int().min(10).max(3600).default(120),
 })
 
-export async function GET(req: NextRequest) {
-  const adminUser = await isAdminAuthenticated(req)
-
+export async function GET() {
   const { data, error } = await supabaseAdmin
     .from('raffles')
     .select('id, label, status, duration_sec, starts_at, ends_at, winner_id, created_at')
@@ -24,12 +21,9 @@ export async function GET(req: NextRequest) {
     return Response.json({ error: 'Internal server error.' }, { status: 500 })
   }
 
-  // Strip winner_id from public responses — only admins need it
-  const response = adminUser
-    ? data
-    : data.map(({ winner_id: _w, ...r }) => r)
-
-  return Response.json(response)
+  // winner_id is a UUID reference (not PII) and is needed by the screen
+  // to detect when to show the winner overlay.
+  return Response.json(data)
 }
 
 export async function POST(req: NextRequest) {
