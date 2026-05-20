@@ -44,7 +44,10 @@ export async function GET(req: NextRequest) {
     .order('ends_at', { ascending: false, nullsFirst: false })
     .limit(MAX_EXPORT)
 
-  if (q) query = query.or(`label.ilike.%${q}%`)
+  if (q) {
+    const safe = q.replace(/[,()]/g, ' ').trim()
+    query = query.or(`label.ilike.%${safe}%`)
+  }
 
   const { data, error } = await query
   if (error) {

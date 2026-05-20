@@ -33,7 +33,8 @@ export async function GET(req: NextRequest) {
     .select('id', { count: 'exact', head: true })
 
   if (q) {
-    const like = `%${q}%`
+    const safe = q.replace(/[,()]/g, ' ').trim()
+    const like = `%${safe}%`
     rowsQuery = rowsQuery.or(`name.ilike.${like},phone.ilike.${like},email.ilike.${like}`)
     countQuery = countQuery.or(`name.ilike.${like},phone.ilike.${like},email.ilike.${like}`)
   }

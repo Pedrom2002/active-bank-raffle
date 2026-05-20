@@ -46,7 +46,8 @@ export async function GET(req: NextRequest) {
 
   if (raffleId) query = query.eq('raffle_id', raffleId)
   if (q) {
-    const like = `%${q}%`
+    const safe = q.replace(/[,()]/g, ' ').trim()
+    const like = `%${safe}%`
     query = query.or(`name.ilike.${like},phone.ilike.${like},email.ilike.${like}`)
   }
 

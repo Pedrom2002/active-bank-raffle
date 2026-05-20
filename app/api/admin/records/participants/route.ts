@@ -48,7 +48,8 @@ export async function GET(req: NextRequest) {
     countQuery = countQuery.eq('raffle_id', raffleId)
   }
   if (q) {
-    const like = `%${q}%`
+    const safe = q.replace(/[,()]/g, ' ').trim()
+    const like = `%${safe}%`
     rowsQuery = rowsQuery.or(`name.ilike.${like},phone.ilike.${like},email.ilike.${like}`)
     countQuery = countQuery.or(`name.ilike.${like},phone.ilike.${like},email.ilike.${like}`)
   }

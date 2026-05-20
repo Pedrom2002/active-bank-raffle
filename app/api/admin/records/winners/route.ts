@@ -39,14 +39,16 @@ export async function GET(req: NextRequest) {
     .not('winner_id', 'is', null)
     .order('ends_at', { ascending: false, nullsFirst: false })
     .range(from, to)
-  const countQuery = supabaseAdmin
+  let countQuery = supabaseAdmin
     .from('raffles')
     .select('id', { count: 'exact', head: true })
     .eq('status', 'closed')
     .not('winner_id', 'is', null)
 
   if (q) {
-    rowsQuery = rowsQuery.or(`label.ilike.%${q}%`)
+    const safe = q.replace(/[,()]/g, ' ').trim()
+    rowsQuery = rowsQuery.or(`label.ilike.%${safe}%`)
+    countQuery = countQuery.or(`label.ilike.%${safe}%`)
   }
 
   const [rowsRes, countRes] = await Promise.all([

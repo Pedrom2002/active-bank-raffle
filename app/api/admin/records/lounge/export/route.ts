@@ -34,7 +34,8 @@ export async function GET(req: NextRequest) {
     .limit(MAX_EXPORT)
 
   if (q) {
-    const like = `%${q}%`
+    const safe = q.replace(/[,()]/g, ' ').trim()
+    const like = `%${safe}%`
     query = query.or(`name.ilike.${like},phone.ilike.${like},email.ilike.${like}`)
   }
 

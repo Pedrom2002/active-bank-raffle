@@ -52,6 +52,7 @@ export function ParticipantsList() {
 
   return (
     <RecordsTable<ParticipantRecord>
+      key={raffleId || 'all'}
       columns={columns}
       fetchPage={fetchPage}
       exportHref={exportHref}
