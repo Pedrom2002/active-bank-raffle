@@ -15,11 +15,11 @@ function saveArchived(ids: Set<string>) {
   localStorage.setItem(ARCHIVE_KEY, JSON.stringify([...ids]))
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [raffles, setRaffles] = useState<Raffle[]>([])
   const [participants, setParticipants] = useState<Record<string, Participant[]>>({})
   const [drawingId, setDrawingId] = useState<string | null>(null)
-  const [offline, setOffline] = useState(false)
   const [archived, setArchived] = useState<Set<string>>(new Set())
   const [showArchive, setShowArchive] = useState(false)
   const [toasts, setToasts] = useState<Toast[]>([])
@@ -69,16 +69,11 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
     try {
       const res = await fetch('/api/raffles')
       if (res.ok) {
-        setOffline(false)
         const data: Raffle[] = await res.json()
         setRaffles(data)
         fetchParticipants(data.filter(r => r.status === 'active').map(r => r.id))
-      } else {
-        setOffline(true)
       }
-    } catch {
-      setOffline(true)
-    }
+    } catch { /* retry on next poll */ }
   }, [fetchParticipants])
 
   usePolling(fetchRaffles, 4000)
@@ -154,28 +149,6 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
 
   return (
     <div className="min-h-screen bg-[#F7F8FA]">
-      <header className="bg-white border-b border-[#E5E7EB] sticky top-0 z-20">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo_activobank.svg" alt="ActivoBank" width={137} height={22} />
-          <div className="flex items-center gap-3">
-            {offline && (
-              <span className="text-xs font-medium text-red-600 bg-red-50 border border-red-200 px-2.5 py-1 rounded-lg">
-                Sem ligação
-              </span>
-            )}
-            <a href="/screen" target="_blank" rel="noreferrer"
-              className="text-xs font-medium text-[#0096DC] hover:text-[#0064B4] px-3 py-1.5 rounded-lg hover:bg-[#0096DC]/5 transition-colors">
-              Ecrã TV
-            </a>
-            <button onClick={onLogout}
-              className="text-xs text-[#6B7280] hover:text-[#0A0A0A] px-3 py-1.5 rounded-lg hover:bg-[#F7F8FA] transition-colors">
-              Sair
-            </button>
-          </div>
-        </div>
-      </header>
-
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6 space-y-6">
         <CreateRaffleForm onCreated={fetchRaffles} onToast={pushToast} />
         <RaffleList

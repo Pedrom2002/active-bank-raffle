@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { PinGate } from './PinGate'
-import { Dashboard } from './Dashboard'
+import { AdminShell } from './AdminShell'
 
 export default function AdminPage() {
   const [status, setStatus] = useState<'checking' | 'locked' | 'unlocked'>('checking')
@@ -27,6 +27,6 @@ export default function AdminPage() {
   }
 
   return status === 'unlocked'
-    ? <Dashboard onLogout={handleLogout} />
+    ? <AdminShell onLogout={handleLogout} />
     : <PinGate onUnlock={() => setStatus('unlocked')} />
 }
