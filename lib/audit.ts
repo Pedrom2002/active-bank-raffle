@@ -12,6 +12,8 @@ type AuditEvent =
   | { event: 'participant.deleted'; participantId: string; raffleId: string; ip: string }
   | { event: 'lounge.entry'; entrantId: string; ip: string }
   | { event: 'rate_limit.exceeded'; endpoint: string; ip: string }
+  | { event: 'admin.records.listed'; type: 'lounge' | 'participants' | 'winners'; q: string | null; raffleId: string | null; page: number; count: number; ip: string }
+  | { event: 'admin.records.exported'; type: 'lounge' | 'participants' | 'winners'; q: string | null; raffleId: string | null; count: number; ip: string }
 
 export function audit(data: AuditEvent): void {
   const entry = { ts: new Date().toISOString(), ...data }
