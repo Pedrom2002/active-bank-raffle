@@ -42,3 +42,28 @@ export type LoungeEntrant = {
 }
 
 export type Toast = { id: number; kind: 'success' | 'info' | 'error'; text: string }
+
+export type ParticipantRecord = {
+  id: string
+  raffle_id: string
+  raffle_label: string
+  name: string
+  phone: string
+  email: string
+  registered_at: string
+}
+
+export type WinnerRecord = {
+  raffle_id: string
+  raffle_label: string
+  ends_at: string | null
+  created_at: string
+  winner: { id: string; name: string; phone: string; email: string }
+}
+
+export type PagedResponse<T> = {
+  rows: T[]
+  total: number
+  page: number
+  page_size: number
+}
