@@ -95,20 +95,37 @@ export default function ScreenPage() {
       fetchQRs(newRaffles)
     }
 
-    // Remove closed raffles from the loaded-ids set.
+    // Remove closed raffles from the loaded-ids set and from the QR map, so a
+    // stale (already-expired) entry can't drive the refresh scheduler below.
     const activeIds = new Set(activeRaffles.map(r => r.id))
     loadedQRIds.current = new Set([...loadedQRIds.current].filter(id => activeIds.has(id)))
+    setQrMap(prev => {
+      const next: Record<string, RaffleQR> = {}
+      for (const id of Object.keys(prev)) {
+        if (activeIds.has(id)) next[id] = prev[id]
+      }
+      return Object.keys(next).length === Object.keys(prev).length ? prev : next
+    })
   }, [activeRaffles, fetchQRs])
 
-  // Refresh ALL QR codes every 90 s so the displayed token is always from the
-  // current 120 s window, well before the 30 s grace period can expire.
+  // Refresh QR codes just after the soonest token's 120 s window rolls over.
+  // Tokens expire at a fixed wall-clock instant (expires_at), NOT relative to
+  // when they were fetched, so a blind fixed-interval refresh can leave a stale,
+  // already-expired token on screen. Scheduling off expires_at guarantees the
+  // displayed token is always within its valid window; the server's 30 s grace
+  // bridges the brief handoff while the new QR is fetched and rendered.
   useEffect(() => {
-    const iv = setInterval(() => {
+    const expiries = Object.values(qrMap).map(q => q.expires_at).filter(Boolean)
+    if (expiries.length === 0) return
+    const soonest = Math.min(...expiries)
+    // Fire ~1.5 s into the next window so we fetch a token for the new window.
+    const delay = Math.max(2000, soonest - Date.now() + 1500)
+    const t = setTimeout(() => {
       const raffles = activeRafflesRef.current
       if (raffles.length > 0) fetchQRs(raffles)
-    }, 90_000)
-    return () => clearInterval(iv)
-  }, [fetchQRs])
+    }, delay)
+    return () => clearTimeout(t)
+  }, [qrMap, fetchQRs])
 
   if (winner) {
     return (
