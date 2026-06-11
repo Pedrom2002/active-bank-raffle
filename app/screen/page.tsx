@@ -145,15 +145,24 @@ export default function ScreenPage() {
     )
   }
 
+  const single = activeRaffles.length === 1
+
   return (
     <div className="min-h-screen bg-white flex flex-col">
       <ScreenHeader />
-      <main id="main-content" className="flex-1 p-6 grid grid-cols-1 lg:grid-cols-2 gap-6 content-start max-w-7xl mx-auto w-full">
+      <main
+        id="main-content"
+        className={
+          single
+            ? 'flex-1 p-6 flex items-center justify-center w-full'
+            : 'flex-1 p-6 grid grid-cols-1 lg:grid-cols-2 gap-6 content-start max-w-7xl mx-auto w-full'
+        }
+      >
         {activeRaffles.map(raffle => {
           const qr = qrMap[raffle.id]
           const endsAt = qr?.ends_at ?? (new Date(raffle.starts_at).getTime() + raffle.duration_sec * 1000)
           return (
-            <RaffleCard key={raffle.id} raffle={raffle} qr={qr} endsAt={endsAt} />
+            <RaffleCard key={raffle.id} raffle={raffle} qr={qr} endsAt={endsAt} single={single} />
           )
         })}
       </main>
@@ -164,7 +173,7 @@ export default function ScreenPage() {
 
 // Isolated card component — each instance has its own countdown ticker,
 // so a single setInterval drives only one card, not the entire page.
-function RaffleCard({ raffle, qr, endsAt }: { raffle: Raffle; qr: RaffleQR | undefined; endsAt: number }) {
+function RaffleCard({ raffle, qr, endsAt, single = false }: { raffle: Raffle; qr: RaffleQR | undefined; endsAt: number; single?: boolean }) {
   const [remaining, setRemaining] = useState(() => Math.max(0, Math.ceil((endsAt - Date.now()) / 1000)))
 
   useEffect(() => {
@@ -174,20 +183,25 @@ function RaffleCard({ raffle, qr, endsAt }: { raffle: Raffle; qr: RaffleQR | und
     return () => clearInterval(iv)
   }, [endsAt])
 
+  // Single raffle scales the QR with the viewport (whichever of width/height is
+  // the limiting dimension); the multi-card grid keeps a fixed, compact size.
+  const qrSizeClass = single ? '' : 'w-56 h-56 sm:w-72 sm:h-72'
+  const qrSizeStyle = single ? { width: 'min(55vh, 80vw)', height: 'min(55vh, 80vw)' } : undefined
+
   return (
-    <div className="bg-white border border-[#E5E7EB] rounded-2xl p-6 shadow-sm flex flex-col items-center text-center">
+    <div className={`bg-white border border-[#E5E7EB] rounded-2xl p-6 shadow-sm flex flex-col items-center text-center ${single ? 'w-auto max-w-full' : ''}`}>
       <div className="flex items-center gap-2 mb-4">
         <span className="w-2 h-2 rounded-full bg-[#0096DC] animate-pulse" />
         <span className="text-xs font-medium text-[#0096DC] uppercase tracking-widest">Sorteio ativo</span>
       </div>
-      <h2 className="text-3xl font-semibold tracking-tight text-[#0A0A0A] mb-5">{raffle.label}</h2>
+      <h2 className={`font-semibold tracking-tight text-[#0A0A0A] mb-5 ${single ? 'text-4xl sm:text-5xl' : 'text-3xl'}`}>{raffle.label}</h2>
       <div className="bg-[#F7F8FA] rounded-xl p-4 mb-4">
         {qr?.qr_data_url
-          ? <Image src={qr.qr_data_url} alt="QR Code para participar no sorteio" width={288} height={288} unoptimized className="w-56 h-56 sm:w-72 sm:h-72" />
-          : <div className="w-56 h-56 sm:w-72 sm:h-72 bg-[#E5E7EB] rounded-lg animate-pulse" />
+          ? <Image src={qr.qr_data_url} alt="QR Code para participar no sorteio" width={288} height={288} unoptimized className={qrSizeClass} style={qrSizeStyle} />
+          : <div className={`bg-[#E5E7EB] rounded-lg animate-pulse ${qrSizeClass}`} style={qrSizeStyle} />
         }
       </div>
-      <p className="text-5xl font-semibold tabular-nums text-[#0096DC]">{remaining}s</p>
+      <p className={`font-semibold tabular-nums text-[#0096DC] ${single ? 'text-6xl sm:text-7xl' : 'text-5xl'}`}>{remaining}s</p>
       <p className="text-xs text-[#6B7280] mt-1 uppercase tracking-wider">Tempo restante</p>
     </div>
   )
