@@ -137,7 +137,7 @@ export default function ScreenPage() {
           <p className="text-sm font-medium tracking-[0.3em] uppercase opacity-80 mb-4">{winner.label}</p>
           <div className="text-6xl mb-6" aria-hidden>🏆</div>
           <h1 className="text-7xl sm:text-8xl font-semibold tracking-tight mb-3">{winner.name}</h1>
-          <p className="text-2xl opacity-80 tabular-nums">{winner.phone}</p>
+          <p className="text-2xl opacity-80 tabular-nums">{maskPhone(winner.phone)}</p>
         </main>
         <footer className="px-8 py-4 text-center text-white/60 text-xs">Fan Zone · Mundial 2026</footer>
       </div>
@@ -222,6 +222,14 @@ function RaffleCard({ raffle, qr, endsAt, single = false }: { raffle: Raffle; qr
       <p className="text-xs text-[#6B7280] mt-1 uppercase tracking-wider">Tempo restante</p>
     </div>
   )
+}
+
+// Masks a phone for public display, revealing only the last 4 digits
+// (e.g. "+351912345678" → "•••• 5678"). The full number stays admin-only.
+function maskPhone(phone: string | null | undefined): string {
+  const digits = (phone ?? '').replace(/\D/g, '')
+  if (!digits) return ''
+  return `•••• ${digits.slice(-4)}`
 }
 
 function ScreenHeader() {
