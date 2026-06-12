@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
 
   let rowsQuery = supabaseAdmin
     .from('raffle_participants')
-    .select('id, raffle_id, name, phone, email, registered_at, raffles(label)')
+    .select('id, raffle_id, name, phone, email, registered_at, raffles!raffle_id(label)')
     .order('registered_at', { ascending: false })
     .range(from, to)
   let countQuery = supabaseAdmin

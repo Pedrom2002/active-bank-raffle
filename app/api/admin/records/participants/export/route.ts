@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
 
   let query = supabaseAdmin
     .from('raffle_participants')
-    .select('id, raffle_id, name, phone, email, registered_at, raffles(label)')
+    .select('id, raffle_id, name, phone, email, registered_at, raffles!raffle_id(label)')
     .order('registered_at', { ascending: false })
     .limit(MAX_EXPORT)
 
