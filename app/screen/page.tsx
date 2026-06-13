@@ -12,6 +12,14 @@ export default function ScreenPage() {
   // null → non-null transition without triggering on pre-existing winners.
   const prevWinnerIds = useRef<Map<string, string | null>>(new Map())
   const isFirstPoll = useRef(true)
+  const lastReplayRaffleId = useRef<string | null>(null)
+  const winnerTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const showWinner = useCallback((w: Winner) => {
+    if (winnerTimeoutRef.current) clearTimeout(winnerTimeoutRef.current)
+    setWinner(w)
+    winnerTimeoutRef.current = setTimeout(() => setWinner(null), 30_000)
+  }, [])
 
   const fetchRaffles = useCallback(async () => {
     try {
@@ -39,15 +47,14 @@ export default function ScreenPage() {
         if (detailRes.ok) {
           const detail = await detailRes.json()
           if (detail.raffle_participants) {
-            setWinner({ raffle_id: newlyWon.id, label: newlyWon.label, ...detail.raffle_participants })
-            setTimeout(() => setWinner(null), 12_000)
+            showWinner({ raffle_id: newlyWon.id, label: newlyWon.label, ...detail.raffle_participants })
           }
         }
       }
     } catch {
       // Silently retry on next poll — screen must never crash
     }
-  }, [])
+  }, [])  // eslint-disable-line react-hooks/exhaustive-deps
 
   // Ref keeps active raffles accessible in intervals without stale closure issues.
   const activeRafflesRef = useRef<Raffle[]>([])
@@ -84,6 +91,23 @@ export default function ScreenPage() {
     const iv = setInterval(fetchRaffles, 3000)
     return () => clearInterval(iv)
   }, [fetchRaffles])
+
+  useEffect(() => {
+    async function pollReplay() {
+      try {
+        const res = await fetch('/api/screen/replay', { cache: 'no-store' })
+        if (!res.ok) return
+        const { replay } = await res.json()
+        if (!replay) return
+        if (lastReplayRaffleId.current === replay.raffle_id) return
+        lastReplayRaffleId.current = replay.raffle_id
+        showWinner(replay)
+      } catch { /* silent */ }
+    }
+    pollReplay()
+    const iv = setInterval(pollReplay, 3000)
+    return () => clearInterval(iv)
+  }, [showWinner])
 
   useEffect(() => {
     activeRafflesRef.current = activeRaffles
