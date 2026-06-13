@@ -59,7 +59,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const { data: raffle, error: raffleErr } = await supabaseAdmin
     .from('raffles')
-    .select('id, label, status')
+    .select('id, label, status, starts_at')
     .eq('id', id)
     .single()
 
@@ -68,7 +68,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return Response.json({ error: 'Este sorteio já encerrou.' }, { status: 410 })
   }
 
-  if (!validateToken(id, token)) {
+  const raffleStartedAt = raffle.starts_at ? new Date(raffle.starts_at).getTime() : undefined
+  if (!validateToken(id, token, raffleStartedAt)) {
     return Response.json({ error: 'QR code expirado. Escaneia o código mais recente no ecrã.' }, { status: 422 })
   }
 

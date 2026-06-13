@@ -15,13 +15,34 @@ export function currentToken(raffleId: string): { token: string; expiresAt: numb
   return { token, expiresAt }
 }
 
-export function validateToken(raffleId: string, token: string): boolean {
+// Accepts any token generated since the raffle started (raffleStartedAt).
+// This means a participant who scans at minute 1 of a 5-minute raffle can
+// still submit at minute 4 without getting "QR code expirado".
+// Falls back to current + previous window if raffleStartedAt is not provided.
+export function validateToken(raffleId: string, token: string, raffleStartedAt?: number): boolean {
   const now = Date.now()
-  const window = windowFor(now)
-  const validTokens = [makeToken(raffleId, window)]
-  const prevWindowEnd = window * WINDOW_SECONDS * 1000
+  const currentWindow = windowFor(now)
+
+  if (raffleStartedAt) {
+    const startWindow = windowFor(raffleStartedAt)
+    // Accept all windows from raffle start up to current, plus 30s grace into next
+    const validTokens: string[] = []
+    for (let w = startWindow; w <= currentWindow; w++) {
+      validTokens.push(makeToken(raffleId, w))
+    }
+    // 30s grace period for the window that just ended
+    const prevWindowEnd = currentWindow * WINDOW_SECONDS * 1000
+    if (now - prevWindowEnd < 30_000) {
+      validTokens.push(makeToken(raffleId, currentWindow - 1))
+    }
+    return validTokens.includes(token)
+  }
+
+  // Fallback: current window + 30s grace on previous
+  const validTokens = [makeToken(raffleId, currentWindow)]
+  const prevWindowEnd = currentWindow * WINDOW_SECONDS * 1000
   if (now - prevWindowEnd < 30_000) {
-    validTokens.push(makeToken(raffleId, window - 1))
+    validTokens.push(makeToken(raffleId, currentWindow - 1))
   }
   return validTokens.includes(token)
 }
