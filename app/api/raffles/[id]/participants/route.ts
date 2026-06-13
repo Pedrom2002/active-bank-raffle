@@ -1,7 +1,6 @@
 import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { supabaseAdmin } from '@/lib/supabase'
-import { validateToken } from '@/lib/tokens'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { isAdminAuthenticated } from '@/lib/admin-auth'
 import { requireAdmin } from '@/lib/require-admin'
@@ -15,7 +14,7 @@ const registerSchema = z.object({
   name: z.string().min(1).max(100),
   phone: z.string().regex(/^\+?[1-9]\d{6,14}$/, 'Invalid phone number'),
   email: z.string().email().max(200),
-  token: z.string().min(1),
+  token: z.string().optional(),
   consent: z.boolean().refine((v) => v === true, 'Consent required'),
 })
 
@@ -50,22 +49,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return Response.json({ error: 'Dados inválidos. Verifica o formulário.' }, { status: 400 })
   }
 
-  const { name, phone, email, token } = parsed.data
+  const { name, phone, email } = parsed.data
 
   const { data: raffle, error: raffleErr } = await supabaseAdmin
     .from('raffles')
-    .select('id, label, status, starts_at')
+    .select('id, label, status')
     .eq('id', id)
     .single()
 
   if (raffleErr || !raffle) return Response.json({ error: 'Raffle not found' }, { status: 404 })
   if (raffle.status !== 'active') {
     return Response.json({ error: 'Este sorteio já encerrou.' }, { status: 410 })
-  }
-
-  const raffleStartedAt = raffle.starts_at ? new Date(raffle.starts_at).getTime() : undefined
-  if (!validateToken(id, token, raffleStartedAt)) {
-    return Response.json({ error: 'QR code expirado. Escaneia o código mais recente no ecrã.' }, { status: 422 })
   }
 
   const { data, error } = await supabaseAdmin
