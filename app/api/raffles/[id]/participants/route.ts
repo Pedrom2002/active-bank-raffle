@@ -8,6 +8,7 @@ import { requireAdmin } from '@/lib/require-admin'
 import { audit } from '@/lib/audit'
 import { getClientIp } from '@/lib/request-ip'
 
+
 const uuidRe = /^[0-9a-f-]{36}$/i
 
 const registerSchema = z.object({
@@ -30,7 +31,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     .select(selectFields)
     .eq('raffle_id', id)
     .order('registered_at', { ascending: false })
-    .limit(20)
+    .limit(500)
   if (error) {
     console.error('[participants] GET error:', error.message)
     return Response.json({ error: 'Internal server error.' }, { status: 500 })
@@ -40,12 +41,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const ip = getClientIp(req)
-  const allowed = await checkRateLimit(`register:${ip}`, 100, 600)
-  if (!allowed) {
-    audit({ event: 'rate_limit.exceeded', endpoint: 'participants.register', ip })
-    return Response.json({ error: 'Demasiadas inscrições. Tenta de novo mais tarde.' }, { status: 429 })
-  }
-
   const { id } = await params
   if (!uuidRe.test(id)) return Response.json({ error: 'Invalid id.' }, { status: 400 })
 
