@@ -9,7 +9,7 @@ const uuidRe = /^[0-9a-f-]{36}$/i
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const ip = getClientIp(req)
-  const allowed = await checkRateLimit(`qr:${ip}`, 30, 60)
+  const allowed = await checkRateLimit(`qr:${ip}`, 300, 60)
   if (!allowed) return Response.json({ error: 'Too many requests.' }, { status: 429 })
 
   const { id } = await params

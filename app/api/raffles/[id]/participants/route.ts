@@ -40,7 +40,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const ip = getClientIp(req)
-  const allowed = await checkRateLimit(`register:${ip}`, 5, 600)
+  const allowed = await checkRateLimit(`register:${ip}`, 100, 600)
   if (!allowed) {
     audit({ event: 'rate_limit.exceeded', endpoint: 'participants.register', ip })
     return Response.json({ error: 'Demasiadas inscrições. Tenta de novo mais tarde.' }, { status: 429 })

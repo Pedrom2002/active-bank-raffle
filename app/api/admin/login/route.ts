@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
         'Secure',
         'SameSite=Strict',
         'Path=/',
-        'Max-Age=7200',
+        'Max-Age=43200',
       ].join('; '),
     },
   })
