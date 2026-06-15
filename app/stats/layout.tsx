@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'ActivoBank Fan Zone',
+  title: 'ActivoBank Lounge',
   description: 'Estatísticas do stand ActivoBank no Mundial 2026',
 }
 
