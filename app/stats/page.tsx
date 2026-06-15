@@ -66,8 +66,23 @@ export default function StatsPage() {
 
   useEffect(() => {
     load()
-    const iv = setInterval(load, 10_000)
-    return () => clearInterval(iv)
+
+    // Schedule next load at midnight Lisbon time (UTC+1)
+    function msUntilMidnight() {
+      const now = new Date()
+      const lisbon = new Date(now.getTime() + 60 * 60 * 1000)
+      const next = new Date(lisbon)
+      next.setUTCHours(23, 0, 0, 0) // 23:00 UTC = 00:00 Lisbon
+      if (next <= lisbon) next.setUTCDate(next.getUTCDate() + 1)
+      return next.getTime() - now.getTime()
+    }
+
+    let timer: ReturnType<typeof setTimeout>
+    function scheduleNext() {
+      timer = setTimeout(() => { load(); scheduleNext() }, msUntilMidnight())
+    }
+    scheduleNext()
+    return () => clearTimeout(timer)
   }, [load])
 
   // Filter to only days with any activity
