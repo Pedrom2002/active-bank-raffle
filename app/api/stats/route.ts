@@ -43,9 +43,10 @@ export async function GET() {
   const lounge = loungeRes.data ?? []
 
   // Separate lounge-raffle participants from real raffle participants
+  // Lounge raffles count as raffles (in sorteios column) but their participants go to lounge column
   const loungeRaffleParticipants = participants.filter(p => LOUNGE_RAFFLE_IDS.has(p.raffle_id))
   const realParticipants = participants.filter(p => !LOUNGE_RAFFLE_IDS.has(p.raffle_id))
-  const realRaffles = raffles.filter(r => !LOUNGE_RAFFLE_IDS.has(r.id))
+  const realRaffles = raffles // all raffles count toward sorteios column
 
   // Totals
   const totalParticipants = realParticipants.length
