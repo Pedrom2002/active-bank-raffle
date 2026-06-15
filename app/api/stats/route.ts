@@ -42,14 +42,12 @@ export async function GET() {
   const participants = participantsRes.data ?? []
   const lounge = loungeRes.data ?? []
 
-  // Separate lounge-raffle participants from real raffle participants
-  // Lounge raffles count as raffles (in sorteios column) but their participants go to lounge column
+  // Lounge-raffle participants count in BOTH columns: participants + lounge
   const loungeRaffleParticipants = participants.filter(p => LOUNGE_RAFFLE_IDS.has(p.raffle_id))
-  const realParticipants = participants.filter(p => !LOUNGE_RAFFLE_IDS.has(p.raffle_id))
   const realRaffles = raffles // all raffles count toward sorteios column
 
-  // Totals
-  const totalParticipants = realParticipants.length
+  // Totals: lounge-raffle participants counted in both totals
+  const totalParticipants = participants.length
   const totalLounge = lounge.length + loungeRaffleParticipants.length
 
   // Per-day breakdown (date in Europe/Lisbon = UTC+1)
@@ -69,8 +67,8 @@ export async function GET() {
     dayMap.set(day, s)
   }
 
-  // Count real participants per day (by registered_at)
-  for (const p of realParticipants) {
+  // Count all participants per day (lounge-raffle also counted here)
+  for (const p of participants) {
     const day = toDay(p.registered_at)
     const s = dayMap.get(day) ?? { date: day, raffles: 0, participants: 0, lounge: 0 }
     s.participants++
