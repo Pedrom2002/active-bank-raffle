@@ -27,9 +27,11 @@ export async function GET(req: NextRequest) {
   const url = new URL(req.url)
   const q = url.searchParams.get('q')?.trim() || null
 
+  const EVENT_START = '2026-06-11T00:00:00Z'
   let query = supabaseAdmin
     .from('lounge_entrants')
     .select('id, name, phone, email, entered_at')
+    .gte('entered_at', EVENT_START)
     .order('entered_at', { ascending: false })
     .limit(MAX_EXPORT)
 

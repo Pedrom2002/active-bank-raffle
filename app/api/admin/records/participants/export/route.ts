@@ -38,9 +38,11 @@ export async function GET(req: NextRequest) {
   const q = url.searchParams.get('q')?.trim() || null
   const raffleId = url.searchParams.get('raffle_id') || null
 
+  const EVENT_START = '2026-06-11T00:00:00Z'
   let query = supabaseAdmin
     .from('raffle_participants')
     .select('id, raffle_id, name, phone, email, registered_at, raffles!raffle_id(label)')
+    .gte('registered_at', EVENT_START)
     .order('registered_at', { ascending: false })
     .limit(MAX_EXPORT)
 

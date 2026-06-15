@@ -6,6 +6,7 @@ import { audit } from '@/lib/audit'
 import { getClientIp } from '@/lib/request-ip'
 
 const PAGE_SIZE = 50
+const EVENT_START = '2026-06-11T00:00:00Z'
 
 export async function GET(req: NextRequest) {
   const deny = await requireAdmin(req)
@@ -26,11 +27,13 @@ export async function GET(req: NextRequest) {
   let rowsQuery = supabaseAdmin
     .from('lounge_entrants')
     .select('id, name, phone, email, entered_at')
+    .gte('entered_at', EVENT_START)
     .order('entered_at', { ascending: false })
     .range(from, to)
   let countQuery = supabaseAdmin
     .from('lounge_entrants')
     .select('id', { count: 'exact', head: true })
+    .gte('entered_at', EVENT_START)
 
   if (q) {
     const safe = q.replace(/[,()]/g, ' ').trim()
