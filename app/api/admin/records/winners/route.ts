@@ -6,6 +6,7 @@ import { audit } from '@/lib/audit'
 import { getClientIp } from '@/lib/request-ip'
 
 const PAGE_SIZE = 50
+const EVENT_START = '2026-06-11T00:00:00Z'
 
 type Row = {
   id: string
@@ -37,6 +38,7 @@ export async function GET(req: NextRequest) {
     .select('id, label, ends_at, created_at, winner_id, winner:raffle_participants!fk_raffle_winner(id, name, phone, email)')
     .eq('status', 'closed')
     .not('winner_id', 'is', null)
+    .gte('created_at', EVENT_START)
     .order('ends_at', { ascending: false, nullsFirst: false })
     .range(from, to)
   let countQuery = supabaseAdmin
@@ -44,6 +46,7 @@ export async function GET(req: NextRequest) {
     .select('id', { count: 'exact', head: true })
     .eq('status', 'closed')
     .not('winner_id', 'is', null)
+    .gte('created_at', EVENT_START)
 
   if (q) {
     const safe = q.replace(/[,()]/g, ' ').trim()
