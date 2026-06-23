@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'ActivoBank — Relatório Fan Zone',
+  title: 'ActivoBank Lounge — Relatório GoalFest',
 }
 
 export default function ReportLayout({ children }: { children: React.ReactNode }) {

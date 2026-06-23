@@ -98,8 +98,8 @@ export default function ReportPage() {
               </div>
             </div>
 
-            <h1 className="text-3xl font-bold text-[#0A0A0A] mb-1">Relatório de Leads — Fan Zone</h1>
-            <p className="text-[#6B7280] text-base mb-6">FIFA World Cup 2026 · ActivoBank Stand · Lisboa</p>
+            <h1 className="text-3xl font-bold text-[#0A0A0A] mb-1">Relatório de Leads — ActivoBank Lounge</h1>
+            <p className="text-[#6B7280] text-base mb-6">FIFA World Cup 2026 · GoalFest · Lisboa</p>
 
             <div className="grid grid-cols-3 gap-4">
               <div className="bg-[#F7F8FA] rounded-xl p-4 text-center">
