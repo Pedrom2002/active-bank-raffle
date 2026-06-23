@@ -10,34 +10,11 @@ type Entry = {
   entered_at: string
 }
 
-function fmtDate(iso: string) {
-  return new Date(iso).toLocaleString('pt-PT', {
-    timeZone: 'Europe/Lisbon',
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
-
-function fmtDay(iso: string) {
-  return new Date(iso).toLocaleDateString('pt-PT', {
-    timeZone: 'Europe/Lisbon',
-    weekday: 'long',
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric',
-  })
-}
-
-function toDay(iso: string) {
-  const d = new Date(new Date(iso).getTime() + 60 * 60 * 1000)
-  return d.toISOString().slice(0, 10)
-}
+const TEST_PHONES = new Set(['930123456', '9306123456'])
 
 export default function ReportPage() {
   const [entries, setEntries] = useState<Entry[]>([])
+  const [rawCount, setRawCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [generatedAt] = useState(() => new Date())
@@ -45,123 +22,120 @@ export default function ReportPage() {
   useEffect(() => {
     fetch('/api/report/lounge/data', { cache: 'no-store' })
       .then(r => r.ok ? r.json() : Promise.reject())
-      .then(d => { setEntries(d.entries); setLoading(false) })
+      .then(d => {
+        const raw: Entry[] = d.entries
+
+        // Remove test entries
+        const filtered = raw.filter(e => !TEST_PHONES.has(e.phone.replace(/\s/g, '')))
+
+        setRawCount(filtered.length)
+
+        // Deduplicate by email (case-insensitive), keep earliest entry
+        const seen = new Map<string, Entry>()
+        for (const e of filtered) {
+          const key = e.email.toLowerCase().trim()
+          if (!seen.has(key)) seen.set(key, e)
+        }
+
+        // Sort by name
+        const deduped = [...seen.values()].sort((a, b) =>
+          a.name.localeCompare(b.name, 'pt')
+        )
+
+        setEntries(deduped)
+        setLoading(false)
+      })
       .catch(() => { setError(true); setLoading(false) })
   }, [])
 
-  // Group by day
-  const byDay = entries.reduce<Record<string, Entry[]>>((acc, e) => {
-    const day = toDay(e.entered_at)
-    if (!acc[day]) acc[day] = []
-    acc[day].push(e)
-    return acc
-  }, {})
-  const days = Object.keys(byDay).sort()
-
   useEffect(() => {
     if (!loading && !error && entries.length > 0) {
-      setTimeout(() => window.print(), 500)
+      setTimeout(() => window.print(), 600)
     }
   }, [loading, error, entries.length])
 
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center text-[#6B7280]">
-      A carregar relatório…
+    <div className="min-h-screen flex items-center justify-center text-[#6B7280] text-sm">
+      A preparar relatório…
     </div>
   )
 
   if (error) return (
-    <div className="min-h-screen flex items-center justify-center text-red-600">
-      Erro ao carregar dados. Verifica sessão admin.
+    <div className="min-h-screen flex items-center justify-center text-red-600 text-sm">
+      Erro ao carregar dados.
     </div>
   )
 
+  const days = new Set(entries.map(e => {
+    const d = new Date(new Date(e.entered_at).getTime() + 60 * 60 * 1000)
+    return d.toISOString().slice(0, 10)
+  })).size
+
   return (
-    <>
-      <div className="min-h-screen bg-white font-sans text-[#0A0A0A]">
+    <div className="bg-white font-sans text-[#0A0A0A]">
+      <div className="max-w-4xl mx-auto px-10 py-10">
 
-        <div className="max-w-4xl mx-auto px-8 py-10">
-
-          {/* Cover */}
-          <div className="mb-10 pb-8 border-b-2 border-[#0096DC]">
-            <div className="flex items-start justify-between mb-8">
-              <Image src="/logo_activobank.svg" alt="ActivoBank" width={160} height={26} />
-              <div className="text-right">
-                <p className="text-xs text-[#6B7280] uppercase tracking-wider">Documento Confidencial</p>
-                <p className="text-xs text-[#6B7280] mt-0.5">
-                  Gerado em {generatedAt.toLocaleString('pt-PT', { timeZone: 'Europe/Lisbon', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                </p>
-              </div>
-            </div>
-
-            <h1 className="text-3xl font-bold text-[#0A0A0A] mb-1">Relatório de Leads — ActivoBank Lounge</h1>
-            <p className="text-[#6B7280] text-base mb-6">FIFA World Cup 2026 · GoalFest · Lisboa</p>
-
-            <div className="grid grid-cols-3 gap-4">
-              <div className="bg-[#F7F8FA] rounded-xl p-4 text-center">
-                <span className="block text-3xl font-bold text-[#0096DC]">{entries.length}</span>
-                <span className="text-xs font-semibold text-[#6B7280] uppercase tracking-wider mt-1 block">Total Leads Lounge</span>
-              </div>
-              <div className="bg-[#F7F8FA] rounded-xl p-4 text-center">
-                <span className="block text-3xl font-bold text-[#0096DC]">{days.length}</span>
-                <span className="text-xs font-semibold text-[#6B7280] uppercase tracking-wider mt-1 block">Dias de Evento</span>
-              </div>
-              <div className="bg-[#F7F8FA] rounded-xl p-4 text-center">
-                <span className="block text-3xl font-bold text-[#0096DC]">
-                  {days.length > 0 ? Math.round(entries.length / days.length) : 0}
-                </span>
-                <span className="text-xs font-semibold text-[#6B7280] uppercase tracking-wider mt-1 block">Média por Dia</span>
-              </div>
-            </div>
+        {/* Header */}
+        <div className="flex items-start justify-between mb-10 pb-6 border-b-2 border-[#0096DC]">
+          <div>
+            <Image src="/logo_activobank.svg" alt="ActivoBank" width={160} height={26} className="mb-4" />
+            <h1 className="text-2xl font-bold text-[#0A0A0A]">Relatório de Leads — ActivoBank Lounge</h1>
+            <p className="text-sm text-[#6B7280] mt-1">FIFA World Cup 2026 · GoalFest · Lisboa</p>
           </div>
-
-          {/* Per-day tables */}
-          {days.map(day => (
-            <div key={day} className="day-section mb-8">
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="text-base font-bold text-[#0A0A0A] capitalize">{fmtDay(`${day}T12:00:00Z`)}</h2>
-                <span className="text-sm font-semibold text-[#0096DC] bg-[#0096DC]/10 px-3 py-1 rounded-full">
-                  {byDay[day].length} leads
-                </span>
-              </div>
-
-              <table className="w-full text-sm border-collapse">
-                <thead>
-                  <tr className="bg-[#0096DC] text-white">
-                    <th className="text-left font-semibold px-3 py-2 rounded-tl-lg">#</th>
-                    <th className="text-left font-semibold px-3 py-2">Nome</th>
-                    <th className="text-left font-semibold px-3 py-2">Telefone</th>
-                    <th className="text-left font-semibold px-3 py-2">Email</th>
-                    <th className="text-left font-semibold px-3 py-2 rounded-tr-lg">Hora</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {byDay[day].map((e, i) => (
-                    <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-[#F7F8FA]'}>
-                      <td className="px-3 py-2 text-[#6B7280] tabular-nums">{i + 1}</td>
-                      <td className="px-3 py-2 font-medium">{e.name}</td>
-                      <td className="px-3 py-2 text-[#6B7280] tabular-nums">{e.phone}</td>
-                      <td className="px-3 py-2 text-[#6B7280]">{e.email}</td>
-                      <td className="px-3 py-2 text-[#6B7280] tabular-nums whitespace-nowrap">
-                        {new Date(e.entered_at).toLocaleTimeString('pt-PT', { timeZone: 'Europe/Lisbon', hour: '2-digit', minute: '2-digit' })}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ))}
-
-          {/* Footer */}
-          <div className="mt-10 pt-6 border-t border-[#E5E7EB] flex items-center justify-between">
-            <Image src="/logo_activobank.svg" alt="ActivoBank" width={100} height={16} />
-            <p className="text-xs text-[#6B7280]">
-              Documento gerado automaticamente · Uso interno · Confidencial
-            </p>
+          <div className="text-right text-xs text-[#6B7280] mt-1">
+            <p className="uppercase tracking-wider font-semibold">Documento Confidencial</p>
+            <p className="mt-1">Gerado em {generatedAt.toLocaleString('pt-PT', {
+              timeZone: 'Europe/Lisbon', day: '2-digit', month: '2-digit',
+              year: 'numeric', hour: '2-digit', minute: '2-digit'
+            })}</p>
           </div>
-
         </div>
+
+        {/* Summary cards */}
+        <div className="grid grid-cols-3 gap-4 mb-10">
+          <div className="border border-[#E5E7EB] rounded-xl p-5 text-center">
+            <span className="block text-4xl font-bold text-[#0096DC]">{entries.length}</span>
+            <span className="text-xs font-semibold text-[#6B7280] uppercase tracking-wider mt-2 block">Leads Únicos</span>
+          </div>
+          <div className="border border-[#E5E7EB] rounded-xl p-5 text-center">
+            <span className="block text-4xl font-bold text-[#0096DC]">{rawCount}</span>
+            <span className="text-xs font-semibold text-[#6B7280] uppercase tracking-wider mt-2 block">Total Registos</span>
+          </div>
+          <div className="border border-[#E5E7EB] rounded-xl p-5 text-center">
+            <span className="block text-4xl font-bold text-[#0096DC]">{days}</span>
+            <span className="text-xs font-semibold text-[#6B7280] uppercase tracking-wider mt-2 block">Dias de Evento</span>
+          </div>
+        </div>
+
+        {/* Leads table */}
+        <table className="w-full text-sm border-collapse">
+          <thead>
+            <tr style={{ backgroundColor: '#0096DC', color: 'white' }}>
+              <th className="text-left font-semibold px-3 py-2.5" style={{ width: 36 }}>#</th>
+              <th className="text-left font-semibold px-3 py-2.5">Nome</th>
+              <th className="text-left font-semibold px-3 py-2.5">Telefone</th>
+              <th className="text-left font-semibold px-3 py-2.5">Email</th>
+            </tr>
+          </thead>
+          <tbody>
+            {entries.map((e, i) => (
+              <tr key={i} style={{ backgroundColor: i % 2 === 0 ? '#ffffff' : '#F7F8FA' }}>
+                <td className="px-3 py-2 text-[#9CA3AF] tabular-nums">{i + 1}</td>
+                <td className="px-3 py-2 font-medium">{e.name}</td>
+                <td className="px-3 py-2 text-[#6B7280] tabular-nums">{e.phone}</td>
+                <td className="px-3 py-2 text-[#6B7280]">{e.email}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        {/* Footer */}
+        <div className="mt-10 pt-6 border-t border-[#E5E7EB] flex items-center justify-between">
+          <Image src="/logo_activobank.svg" alt="ActivoBank" width={90} height={15} />
+          <p className="text-xs text-[#6B7280]">Documento gerado automaticamente · Uso interno · Confidencial</p>
+        </div>
+
       </div>
-    </>
+    </div>
   )
 }
