@@ -43,7 +43,7 @@ export default function ReportPage() {
   const [generatedAt] = useState(() => new Date())
 
   useEffect(() => {
-    fetch('/api/report/lounge', { cache: 'no-store', credentials: 'include' })
+    fetch('/api/report/lounge/data', { cache: 'no-store' })
       .then(r => r.ok ? r.json() : Promise.reject())
       .then(d => { setEntries(d.entries); setLoading(false) })
       .catch(() => { setError(true); setLoading(false) })
@@ -57,6 +57,12 @@ export default function ReportPage() {
     return acc
   }, {})
   const days = Object.keys(byDay).sort()
+
+  useEffect(() => {
+    if (!loading && !error && entries.length > 0) {
+      setTimeout(() => window.print(), 500)
+    }
+  }, [loading, error, entries.length])
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center text-[#6B7280]">
@@ -73,16 +79,6 @@ export default function ReportPage() {
   return (
     <>
       <div className="min-h-screen bg-white font-sans text-[#0A0A0A]">
-
-        {/* Print button */}
-        <div id="print-btn" style={{ position: 'fixed', top: 16, right: 16, zIndex: 50 }}>
-          <button
-            onClick={() => window.print()}
-            className="bg-[#0096DC] hover:bg-[#0064B4] text-white font-semibold px-5 py-2.5 rounded-xl text-sm transition-colors shadow-lg"
-          >
-            Exportar PDF
-          </button>
-        </div>
 
         <div className="max-w-4xl mx-auto px-8 py-10">
 
