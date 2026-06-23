@@ -75,7 +75,7 @@ export default function ReportPage() {
       <div className="min-h-screen bg-white font-sans text-[#0A0A0A]">
 
         {/* Print button */}
-        <div className="no-print fixed top-4 right-4 z-50">
+        <div id="print-btn" style={{ position: 'fixed', top: 16, right: 16, zIndex: 50 }}>
           <button
             onClick={() => window.print()}
             className="bg-[#0096DC] hover:bg-[#0064B4] text-white font-semibold px-5 py-2.5 rounded-xl text-sm transition-colors shadow-lg"
