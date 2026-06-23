@@ -43,7 +43,7 @@ export default function ReportPage() {
   const [generatedAt] = useState(() => new Date())
 
   useEffect(() => {
-    fetch('/api/report/lounge', { cache: 'no-store' })
+    fetch('/api/report/lounge', { cache: 'no-store', credentials: 'include' })
       .then(r => r.ok ? r.json() : Promise.reject())
       .then(d => { setEntries(d.entries); setLoading(false) })
       .catch(() => { setError(true); setLoading(false) })

@@ -1,13 +1,9 @@
 import { supabaseAdmin } from '@/lib/supabase'
-import { requireAdmin } from '@/lib/require-admin'
-import { NextRequest } from 'next/server'
 
 const EVENT_START = '2026-06-11T00:00:00Z'
 const LOUNGE_RAFFLE_ID = 'f16d1ca9-3624-4758-aca6-f35f58b12c66'
 
-export async function GET(req: NextRequest) {
-  const deny = await requireAdmin(req)
-  if (deny) return deny
+export async function GET() {
 
   const [loungeRes, raffleRes] = await Promise.all([
     supabaseAdmin
