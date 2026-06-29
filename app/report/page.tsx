@@ -18,9 +18,14 @@ export default function ReportPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [generatedAt] = useState(() => new Date())
+  const [fromDate, setFromDate] = useState<string | null>(null)
 
   useEffect(() => {
-    fetch('/api/report/lounge/data', { cache: 'no-store' })
+    const params = new URLSearchParams(window.location.search)
+    const from = params.get('from')
+    if (from) setFromDate(from)
+    const url = from ? `/api/report/lounge/data?from=${encodeURIComponent(from)}` : '/api/report/lounge/data'
+    fetch(url, { cache: 'no-store' })
       .then(r => r.ok ? r.json() : Promise.reject())
       .then(d => {
         const raw: Entry[] = d.entries
@@ -80,7 +85,12 @@ export default function ReportPage() {
           <div>
             <Image src="/logo_activobank.svg" alt="ActivoBank" width={160} height={26} className="mb-4" />
             <h1 className="text-2xl font-bold text-[#0A0A0A]">Relatório de Leads — ActivoBank Lounge</h1>
-            <p className="text-sm text-[#6B7280] mt-1">FIFA World Cup 2026 · GoalFest · Lisboa</p>
+            <p className="text-sm text-[#6B7280] mt-1">
+              FIFA World Cup 2026 · GoalFest · Lisboa
+              {fromDate && (
+                <span> · a partir de {new Date(fromDate).toLocaleDateString('pt-PT', { timeZone: 'Europe/Lisbon', day: '2-digit', month: 'long', year: 'numeric' })}</span>
+              )}
+            </p>
           </div>
           <div className="text-right text-xs text-[#6B7280] mt-1">
             <p className="uppercase tracking-wider font-semibold">Documento Confidencial</p>

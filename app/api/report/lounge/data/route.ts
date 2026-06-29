@@ -1,19 +1,23 @@
 import { supabaseAdmin } from '@/lib/supabase'
+import { NextRequest } from 'next/server'
 
 const EVENT_START = '2026-06-11T00:00:00Z'
 const LOUNGE_RAFFLE_ID = 'f16d1ca9-3624-4758-aca6-f35f58b12c66'
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const from = req.nextUrl.searchParams.get('from') ?? EVENT_START
+
   const [loungeRes, raffleRes] = await Promise.all([
     supabaseAdmin
       .from('lounge_entrants')
       .select('name, phone, email, entered_at')
-      .gte('entered_at', EVENT_START)
+      .gte('entered_at', from)
       .order('entered_at', { ascending: true }),
     supabaseAdmin
       .from('raffle_participants')
       .select('name, phone, email, registered_at')
       .eq('raffle_id', LOUNGE_RAFFLE_ID)
+      .gte('registered_at', from)
       .order('registered_at', { ascending: true }),
   ])
 
