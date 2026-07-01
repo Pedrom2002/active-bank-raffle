@@ -102,9 +102,10 @@ export default function EntryPage() {
                 className="mt-0.5 h-4 w-4 shrink-0 rounded border-[#E5E7EB] accent-[#0096DC] cursor-pointer"
               />
               <label htmlFor="consent" className="text-xs text-[#6B7280] leading-relaxed cursor-pointer">
-                Autorizo o ActivoBank a tratar os meus dados pessoais (nome, telemóvel e email)
-                para participação nos sorteios e contacto em caso de prémio, nos termos do RGPD.
-                Os dados são eliminados no prazo de 90 dias após o evento.
+                Ao aceitar os termos e condições de Privacidade, autorizo o ActivoBank a contactar-me
+                para fins de apresentação e comercialização de produtos e serviços. Os seus dados serão
+                eliminados 30 dias após a sua recolha, caso não se estabeleça relação comercial com o ActivoBank.{' '}
+                <span className="underline">Li e aceito os termos e condições de Privacidade.</span>
               </label>
             </div>
 

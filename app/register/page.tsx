@@ -133,9 +133,8 @@ function RegisterForm() {
                 className="mt-0.5 h-4 w-4 shrink-0 rounded border-[#E5E7EB] accent-[#0096DC] cursor-pointer"
               />
               <label htmlFor="consent" className="text-xs text-[#6B7280] leading-relaxed cursor-pointer">
-                Autorizo o ActivoBank a tratar os meus dados pessoais (nome, telemóvel e email)
-                para contacto em caso de prémio, nos termos do RGPD. Os dados são
-                eliminados no prazo de 90 dias após o evento.
+                Os dados partilhados serão eliminados após a seleção do vencedor e conclusão do sorteio.{' '}
+                <span className="underline">Li e aceito os termos e condições de Privacidade.</span>
               </label>
             </div>
 
