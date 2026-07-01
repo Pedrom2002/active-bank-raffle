@@ -133,7 +133,9 @@ function RegisterForm() {
                 className="mt-0.5 h-4 w-4 shrink-0 rounded border-[#E5E7EB] accent-[#0096DC] cursor-pointer"
               />
               <label htmlFor="consent" className="text-xs text-[#6B7280] leading-relaxed cursor-pointer">
-                Os dados partilhados serão eliminados após a seleção do vencedor e conclusão do sorteio.{' '}
+                Os dados partilhados serão eliminados após a seleção do vencedor e conclusão do sorteio.
+                A GoalFest armazena os seus dados durante um período de 30 dias para efeitos de comunicações
+                sobre o evento.{' '}
                 <span className="underline">Li e aceito os termos e condições de Privacidade.</span>
               </label>
             </div>
