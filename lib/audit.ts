@@ -8,6 +8,7 @@ type AuditEvent =
   | { event: 'raffle.created'; raffleId: string; label: string; durationSec: number; ip: string }
   | { event: 'raffle.closed'; raffleId: string; ip: string }
   | { event: 'raffle.winner.selected'; raffleId: string; winnerId: string; totalParticipants: number; ip: string }
+  | { event: 'raffle.winner.redrawn'; raffleId: string; winnerId: string; excludedId: string; ip: string }
   | { event: 'participant.registered'; raffleId: string; participantId: string; ip: string }
   | { event: 'participant.deleted'; participantId: string; raffleId: string; ip: string }
   | { event: 'lounge.entry'; entrantId: string; ip: string }

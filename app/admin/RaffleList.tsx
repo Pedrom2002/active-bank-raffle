@@ -6,10 +6,13 @@ interface Props {
   closedWithWinner: Raffle[]
   archivedRaffles: Raffle[]
   participants: Record<string, Participant[]>
+  winners: Record<string, { name: string; phone: string }>
   drawingId: string | null
+  redrawingId: string | null
   showArchive: boolean
   onToggleArchive: () => void
   onDraw: (id: string, label: string) => void
+  onRedraw: (id: string, label: string) => void
   onClose: (id: string) => void
   onReplay: (id: string, label: string) => void
   onArchive: (id: string) => void
@@ -18,8 +21,8 @@ interface Props {
 
 export function RaffleList({
   activeRaffles, closedWithoutWinner, closedWithWinner, archivedRaffles,
-  participants, drawingId, showArchive,
-  onToggleArchive, onDraw, onClose, onReplay, onArchive, onUnarchive,
+  participants, winners, drawingId, redrawingId, showArchive,
+  onToggleArchive, onDraw, onRedraw, onClose, onReplay, onArchive, onUnarchive,
 }: Props) {
   const isEmpty =
     activeRaffles.length === 0 &&
@@ -108,15 +111,24 @@ export function RaffleList({
       {closedWithWinner.length > 0 && (
         <section className="space-y-3">
           <h2 className="text-sm font-semibold text-[#6B7280] uppercase tracking-wider px-1">Concluídos</h2>
-          {closedWithWinner.map(r => (
+          {closedWithWinner.map(r => {
+            const w = winners[r.id]
+            return (
             <div key={r.id} className="bg-white border border-[#E5E7EB] rounded-2xl p-4 sm:p-5 flex items-center justify-between gap-4">
-              <div>
+              <div className="min-w-0">
                 <h3 className="text-sm font-semibold text-[#0A0A0A]">{r.label}</h3>
-                <p className="text-xs text-[#6B7280] mt-0.5">
-                  {r.ends_at ? new Date(r.ends_at).toLocaleString('pt-PT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : ''}
+                <p className="text-xs mt-0.5 truncate">
+                  {w
+                    ? <span className="text-[#0A0A0A]">🏆 <span className="font-medium">{w.name}</span> <span className="text-[#6B7280] tabular-nums">{w.phone}</span></span>
+                    : <span className="text-[#6B7280]">Vencedor sorteado</span>}
                 </p>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
+                <button onClick={() => onRedraw(r.id, r.label)} disabled={redrawingId === r.id}
+                  className="text-xs font-medium px-3 py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 transition-colors disabled:opacity-50 whitespace-nowrap"
+                  title="Marcar o vencedor como ausente e sortear outro">
+                  {redrawingId === r.id ? 'A sortear…' : 'Ausente — sortear novamente'}
+                </button>
                 <button onClick={() => onReplay(r.id, r.label)}
                   className="text-xs font-medium px-3 py-1.5 rounded-lg bg-[#0096DC]/10 hover:bg-[#0096DC]/20 text-[#0096DC] transition-colors flex items-center gap-1.5">
                   <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6a4 4 0 1 0 4-4V1L3.5 3 6 5V4a3 3 0 1 1-3 3H2a4 4 0 0 1 0-1Z" fill="currentColor"/></svg>
@@ -128,7 +140,8 @@ export function RaffleList({
                 </button>
               </div>
             </div>
-          ))}
+            )
+          })}
         </section>
       )}
 

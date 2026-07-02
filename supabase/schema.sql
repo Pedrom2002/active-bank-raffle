@@ -22,6 +22,7 @@ create table if not exists raffles (
   starts_at    timestamptz not null default now(),
   ends_at      timestamptz,
   winner_id    uuid,
+  excluded_winner_ids uuid[] not null default '{}', -- winners marked absent, excluded from redraw (scoped to this raffle)
   created_at   timestamptz not null default now()
 );
 
@@ -112,6 +113,39 @@ create or replace function delete_lounge_entrant_data(p_entrant_id uuid)
 returns void language plpgsql security definer as $$
 begin
   delete from lounge_entrants where id = p_entrant_id;
+end;
+$$;
+
+-- Redraw — atomically exclude the current (absent) winner and draw a new one
+-- from the remaining participants of this raffle. Row lock serializes concurrent
+-- redraws so no exclusion is ever lost. Raises: raffle_not_found,
+-- no_current_winner, no_eligible_participants (rolls back on any of these).
+create or replace function redraw_raffle_winner(p_raffle_id uuid)
+returns table (winner_id uuid, winner_name text, winner_phone text, excluded_id uuid)
+language plpgsql security definer as $$
+declare
+  v_current  uuid;
+  v_excluded uuid[];
+  v_new      raffle_participants%rowtype;
+begin
+  select r.winner_id, r.excluded_winner_ids into v_current, v_excluded
+    from raffles r where r.id = p_raffle_id for update;
+  if not found then raise exception 'raffle_not_found'; end if;
+  if v_current is null then raise exception 'no_current_winner'; end if;
+
+  v_excluded := (select array(select distinct unnest(array_append(v_excluded, v_current))));
+
+  select p.* into v_new from raffle_participants p
+   where p.raffle_id = p_raffle_id and not (p.id = any (v_excluded))
+   order by random() limit 1;
+  if not found then raise exception 'no_eligible_participants'; end if;
+
+  update raffles set winner_id = v_new.id, excluded_winner_ids = v_excluded
+   where id = p_raffle_id;
+
+  winner_id := v_new.id; winner_name := v_new.name;
+  winner_phone := v_new.phone; excluded_id := v_current;
+  return next;
 end;
 $$;
 

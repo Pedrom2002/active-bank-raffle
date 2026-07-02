@@ -8,6 +8,9 @@ export default function ScreenPage() {
   const [activeRaffles, setActiveRaffles] = useState<Raffle[]>([])
   const [qrMap, setQrMap] = useState<Record<string, RaffleQR>>({})
   const [winner, setWinner] = useState<Winner | null>(null)
+  // Last drawn winner, shown at the bottom of the idle screen (no active QR).
+  const [lastWinner, setLastWinner] = useState<Winner | null>(null)
+  const lastWinnerFetchedId = useRef<string | null>(null)
   // Tracks winner_id per raffle from the previous poll so we can detect the
   // null → non-null transition without triggering on pre-existing winners.
   const prevWinnerIds = useRef<Map<string, string | null>>(new Map())
@@ -28,6 +31,27 @@ export default function ScreenPage() {
       const all: Raffle[] = await res.json()
       setActiveRaffles(all.filter(r => r.status === 'active'))
 
+      // Track the most recent raffle that has a drawn winner. `all` is ordered
+      // by created_at desc, so the first match is the latest raffle won. Only
+      // re-fetch the winner's details when that raffle changes.
+      const latestWon = all.find(r => r.winner_id)
+      if (!latestWon) {
+        lastWinnerFetchedId.current = null
+        setLastWinner(null)
+      } else if (latestWon.winner_id !== lastWinnerFetchedId.current) {
+        // Track by winner_id (not raffle id) so a redraw refreshes the name too.
+        lastWinnerFetchedId.current = latestWon.winner_id ?? null
+        try {
+          const detailRes = await fetch(`/api/raffles/${latestWon.id}`)
+          if (detailRes.ok) {
+            const detail = await detailRes.json()
+            if (detail.raffle_participants) {
+              setLastWinner({ raffle_id: latestWon.id, label: latestWon.label, ...detail.raffle_participants })
+            }
+          }
+        } catch { /* keep previous lastWinner on failure */ }
+      }
+
       if (isFirstPoll.current) {
         isFirstPoll.current = false
         // Snapshot current winner_ids — only future transitions trigger the overlay.
@@ -35,10 +59,12 @@ export default function ScreenPage() {
         return
       }
 
-      // Show overlay when a raffle's winner_id transitions from null → non-null.
+      // Show overlay when a raffle's winner_id changes to a new non-null value.
+      // Covers both the first draw (null → winner) and a redraw (winner → new
+      // winner), so an absent winner replaced by a redraw re-triggers the screen.
       const newlyWon = all.find(r => {
         const prev = prevWinnerIds.current.get(r.id)
-        return r.winner_id && (prev === null || prev === undefined)
+        return r.winner_id && prev !== r.winner_id
       })
       all.forEach(r => prevWinnerIds.current.set(r.id, r.winner_id ?? null))
 
@@ -181,6 +207,18 @@ export default function ScreenPage() {
             Quando um sorteio for ativado, o QR code aparece neste ecrã. Fique atento!
           </p>
         </main>
+        {lastWinner && (
+          <div className="px-8 pb-12 flex flex-col items-center text-center">
+            <p className="text-xs font-medium tracking-[0.25em] uppercase text-[#6B7280] mb-3">
+              Último vencedor · {lastWinner.label}
+            </p>
+            <div className="flex items-center gap-4">
+              <span className="text-3xl" aria-hidden>🏆</span>
+              <span className="text-4xl font-semibold tracking-tight text-[#0A0A0A]">{lastWinner.name}</span>
+            </div>
+            <p className="text-xl text-[#6B7280] tabular-nums mt-2">{maskPhone(lastWinner.phone)}</p>
+          </div>
+        )}
         <ScreenFooter />
       </div>
     )
