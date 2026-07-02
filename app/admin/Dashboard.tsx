@@ -109,6 +109,7 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
     try {
       const res = await fetch(`/api/raffles/${id}`, {
         method: 'PATCH',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'close' }),
       })
@@ -126,6 +127,7 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
       if (raffles.find(r => r.id === id)?.status === 'active') {
         const closeRes = await fetch(`/api/raffles/${id}`, {
           method: 'PATCH',
+          credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action: 'close' }),
         })
@@ -137,6 +139,7 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
 
       const res = await fetch(`/api/raffles/${id}`, {
         method: 'PATCH',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'draw' }),
       })
@@ -161,6 +164,7 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
     try {
       const res = await fetch(`/api/raffles/${id}`, {
         method: 'PATCH',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'redraw' }),
       })
@@ -183,6 +187,7 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
     try {
       const res = await fetch('/api/admin/replay', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ raffle_id: id, label }),
       })

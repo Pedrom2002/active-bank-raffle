@@ -41,6 +41,7 @@ export function CreateRaffleForm({ onCreated, onToast }: Props) {
     try {
       const res = await fetch('/api/raffles', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ label: finalLabel, duration_sec }),
       })
